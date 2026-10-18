@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>For Ishu · 100 days</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Kalam:wght@300;400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --sky-top:#ffd9c7; --sky-bottom:#f4c6dc; --ink:#3a1f45; --ink-soft:#6e4f78;
+  --rose:#d6457a; --paper:#fff8f3; --bubble-me:#d6457a; --bubble-me-ink:#fff;
+  --bubble-her:#ffffff; --bubble-her-ink:#3a1f45; --line:rgba(58,31,69,.18);
+  --phone:#2a1633; --phone-ink:#fff;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --sky-top:#2a1633; --sky-bottom:#4a2342; --ink:#fbe7ee; --ink-soft:#d9b9c9;
+    --rose:#ff7aa6; --paper:#331d3c; --bubble-me:#e0558a; --bubble-me-ink:#fff;
+    --bubble-her:#4b2e55; --bubble-her-ink:#fbe7ee; --line:rgba(251,231,238,.2);
+    --phone:#140a19; --phone-ink:#fff; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --sky-top:#2a1633; --sky-bottom:#4a2342; --ink:#fbe7ee; --ink-soft:#d9b9c9;
+  --rose:#ff7aa6; --paper:#331d3c; --bubble-me:#e0558a; --bubble-me-ink:#fff;
+  --bubble-her:#4b2e55; --bubble-her-ink:#fbe7ee; --line:rgba(251,231,238,.2);
+  --phone:#140a19; --phone-ink:#fff; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px);scroll-behavior:smooth}
+body{
+  margin:0; min-height:100vh; color:var(--ink);
+  background:linear-gradient(180deg,var(--sky-top) 0%,var(--sky-bottom) 100%) fixed;
+  background-color:var(--sky-top);
+  font-family:"Young Serif",Georgia,"Times New Roman",serif;
+  line-height:1.65; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:34rem;margin:0 auto;padding:0 1.25rem}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--rose);outline-offset:3px;border-radius:6px}
+
+/* Lock screen */
+.lock{
+  min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:2rem 1.25rem;
+}
+.lock .date{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:1.05rem;color:var(--ink-soft);margin:0}
+.lock .time{font-size:clamp(5rem,26vw,9rem);line-height:1;margin:.25rem 0 2.5rem;letter-spacing:-.02em}
+.notif{
+  width:100%;max-width:22rem;text-align:left;border:0;
+  background:color-mix(in srgb,var(--paper) 82%,transparent);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  color:var(--ink);border-radius:1.25rem;padding:.9rem 1rem;
+  box-shadow:0 10px 30px rgba(58,31,69,.18);
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+  animation:drop .9s cubic-bezier(.2,.9,.3,1.2) .6s both;
+}
+.notif .who{display:flex;justify-content:space-between;font-size:.85rem;color:var(--ink-soft)}
+.notif strong{color:var(--ink)}
+.notif p{margin:.25rem 0 0;font-size:.98rem}
+.hint{margin-top:1.5rem;font-family:system-ui,sans-serif;font-size:.9rem;color:var(--ink-soft);animation:fade 1s ease 1.8s both}
+@keyframes drop{from{opacity:0;transform:translateY(-24px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+
+/* Chat */
+.story{display:none}
+.story.open{display:block}
+.chat{
+  margin:2.5rem auto 0;max-width:24rem;background:var(--phone);color:var(--phone-ink);
+  border-radius:2rem;padding:1rem 1rem 1.4rem;box-shadow:0 20px 50px rgba(58,31,69,.3);
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+.chat-head{display:flex;align-items:center;gap:.7rem;padding:.3rem .3rem .9rem;border-bottom:1px solid rgba(255,255,255,.12)}
+.avatar{width:2.4rem;height:2.4rem;border-radius:50%;background:var(--rose);display:grid;place-items:center;font-weight:600}
+.chat-head small{display:block;opacity:.7;font-size:.78rem}
+.thread{display:flex;flex-direction:column;gap:.6rem;padding-top:1rem;min-height:12rem}
+.day-chip{align-self:center;font-size:.75rem;opacity:.7;background:rgba(255,255,255,.08);padding:.2rem .7rem;border-radius:1rem}
+.msg{max-width:80%;padding:.55rem .85rem;border-radius:1.1rem;font-size:.98rem;line-height:1.4;opacity:0;transform:translateY(8px);transition:opacity .4s,transform .4s}
+.msg.show{opacity:1;transform:none}
+.msg time{display:block;font-size:.68rem;opacity:.7;text-align:right;margin-top:.15rem}
+.me{align-self:flex-end;background:var(--bubble-me);color:var(--bubble-me-ink);border-bottom-right-radius:.3rem}
+.her{align-self:flex-start;background:var(--bubble-her);color:var(--bubble-her-ink);border-bottom-left-radius:.3rem}
+.typing{align-self:flex-start;background:var(--bubble-her);border-radius:1.1rem;padding:.7rem .9rem;display:none;gap:.25rem}
+.typing.show{display:flex}
+.typing span{width:.45rem;height:.45rem;border-radius:50%;background:var(--bubble-her-ink);opacity:.5;animation:blink 1s infinite}
+.typing span:nth-child(2){animation-delay:.15s}.typing span:nth-child(3){animation-delay:.3s}
+@keyframes blink{0%,100%{opacity:.25}50%{opacity:.8}}
+
+.caption{text-align:center;font-size:1.25rem;margin:2.5rem auto 0;max-width:26rem}
+
+/* Counter */
+.counter{text-align:center;margin:4.5rem 0 0}
+.counter .big{font-size:clamp(4.5rem,22vw,7.5rem);line-height:1;color:var(--rose)}
+.counter p{margin:.4rem 0 0;color:var(--ink-soft)}
+.counter .live{font-family:system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:.95rem}
+
+/* Timeline */
+.timeline{list-style:none;margin:4.5rem 0 0;padding:0;position:relative}
+.timeline::before{content:"";position:absolute;left:.95rem;top:.4rem;bottom:.4rem;width:2px;background:var(--line)}
+.timeline li{position:relative;padding:0 0 2rem 3rem}
+.timeline li::before{
+  content:counter(step);counter-increment:step;position:absolute;left:0;top:0;width:2rem;height:2rem;border-radius:50%;
+  background:var(--paper);border:2px solid var(--rose);color:var(--rose);display:grid;place-items:center;font-size:.85rem;
+}
+.timeline{counter-reset:step}
+.timeline h3{margin:0;font-weight:400;font-size:1.2rem}
+.timeline .when{font-family:system-ui,sans-serif;font-size:.85rem;color:var(--ink-soft)}
+.timeline p{margin:.3rem 0 0}
+
+/* Letter */
+.letter{
+  margin:3rem 0 0;background:var(--paper);border-radius:.4rem 1.6rem .4rem 1.6rem;
+  padding:2rem 1.6rem 2.2rem;box-shadow:0 14px 40px rgba(58,31,69,.16);
+  font-family:"Kalam","Segoe Print","Bradley Hand",cursive;font-weight:300;font-size:1.22rem;line-height:1.75;
+  transform:rotate(-.6deg);
+}
+.letter p{margin:0 0 1rem}
+.letter .sign{text-align:right;margin:1.5rem 0 0;font-weight:400}
+
+/* Ending */
+.end{text-align:center;margin:4.5rem 0 0;padding-bottom:5rem}
+.end h2{font-weight:400;font-size:1.7rem;margin:0 0 1.25rem}
+.btn{
+  border:0;background:var(--rose);color:#fff;padding:.9rem 1.6rem;border-radius:999px;font-size:1.05rem;
+  box-shadow:0 8px 22px color-mix(in srgb,var(--rose) 45%,transparent);transition:transform .15s;
+}
+.btn:active{transform:scale(.96)}
+.answer{margin-top:1.4rem;font-family:"Kalam",cursive;font-size:1.35rem;min-height:2em}
+
+.heart{position:fixed;pointer-events:none;font-size:1.4rem;z-index:20;animation:float 2.6s ease-out forwards}
+@keyframes float{to{transform:translateY(-70vh) rotate(25deg);opacity:0}}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}
+  .heart{display:none}
+}
+</style>
+</head>
+<body>
+
+<section class="lock" id="lock">
+  <p class="date">Thursday, 9 July · Convocation</p>
+  <div class="time" aria-label="2:42 PM">14:42</div>
+  <button class="notif" id="openBtn" aria-label="Open the memory of our first conversation">
+    <div class="who"><strong>A memory</strong><span>face to face</span></div>
+    <p>Me: hi<br>You: are u depressed? aapka story dekhke aisa lgta hai…</p>
+  </button>
+  <p class="hint">Tap to relive it</p>
+</section>
+
+<main class="story" id="story">
+  <div class="wrap">
+
+    <div class="chat" aria-label="Our first conversation, face to face at convocation">
+      <div class="chat-head">
+        <div class="avatar" aria-hidden="true">🎓</div>
+        <div>Convocation day<small>9 July 2026 · face to face</small></div>
+      </div>
+      <div class="thread" id="thread">
+        <span class="day-chip">Our first real conversation</span>
+        <div class="msg me" id="m1">hi<time>14:42</time></div>
+        <div class="typing" id="typing" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="msg her" id="m2">are u depressed? aapka story dekhke aisa lgta hai<time>14:42</time></div>
+      </div>
+    </div>
+
+    <p class="caption">Bas ek “hi” se shuru hua tha sab, aur dekho Ishu… ab tumse baat kiye bina din complete hi nahi lagta. ❤️</p>
+
+    <section class="counter" aria-live="polite">
+      <div class="big" id="days">100</div>
+      <p>days since we started talking</p>
+      <p class="live" id="live"></p>
+    </section>
+
+    <ol class="timeline">
+      <li>
+        <span class="when">Two years of MSc</span>
+        <h3>Same college, barely a word</h3>
+        <p>Same college, same animation lab… do saal tak bas birthday wish hi kar paaya. Tab kaha pata tha ki ek din tum meri itni favourite person ban jaogi.</p>
+      </li>
+      <li>
+        <span class="when">9 July 2026, 14:42</span>
+        <h3>Convocation, our first real talk</h3>
+        <p>Maine bas hi bola tha, aur tumne small talk karne ke bajaye poochha, “are u depressed? aapka story dekhke aisa lgta hai.” Tumne notice kiya ki shayad main theek nahi hoon… and honestly, woh baat mere saath reh gayi.</p>
+      </li>
+      <li>
+        <span class="when">10 July 2026</span>
+        <h3>The chats begin on Instagram</h3>
+        <p>Agla din aaya aur Instagram pe baatein shuru ho gayi. Phir pata hi nahi chala kab tumse baat karna meri daily routine se zyada, meri favourite part ban gaya.</p>
+      </li>
+      <li>
+        <span class="when">August</span>
+        <h3>The Tirupati calls</h3>
+        <p>Tirupati trip pe har shaam tumhe call karna, ghanton baat karna… mujhe bas tumhe har chhoti-badi baat batani hoti thi. Shayad tabhi samajh aane laga tha ki tum mere liye kitni special ho.</p>
+      </li>
+      <li>
+        <span class="when">3 September, night</span>
+        <h3>I told you what I feel</h3>
+        <p>Kaafi time se jo feel kar raha tha, us raat finally tumhe bata diya. Nervous bhi tha, par tumse apni feelings chhupate rehna nahi chahta tha.</p>
+      </li>
+      <li>
+        <span class="when">4 September</span>
+        <h3>We gave it a chance</h3>
+        <p>Tumne mere liye books li thi, aur woh mere liye sirf books nahi hain. Unke saath tumhari care aur woh moment yaad aata hai, aur aaj bhi smile aa jaati hai.</p>
+      </li>
+      <li>
+        <span class="when">A few days later</span>
+        <h3>Two quiet days</h3>
+        <p>Varanasi ka plan cancel hua aur phir woh do din baat nahi hui. Easy nahi tha, but us silence ne bhi samjhaya ki hum ek dusre ko kitna miss karte hain aur kitna matter karte hain.</p>
+      </li>
+      <li>
+        <span class="when">10 September</span>
+        <h3>The proper proposal</h3>
+        <p>Tumne yes bola aur mera haath pakda… woh moment mere liye bahut special tha. Tumhara trust feel hua, tumhari care feel hui. Main shayad words mein perfectly explain na kar paun, but woh din mere dil ke bahut close hai.</p>
+      </li>
+      <li>
+        <span class="when">14 September</span>
+        <h3>A break</h3>
+        <p>Mujhse bhi galtiyan hui, main kabhi irritate hua aur cheezein difficult ho gayi. Break lena pada, aur hurt bhi hua. Par main chahta hoon ki main sirf bolun nahi, apne actions se bhi better banna seekhun.</p>
+      </li>
+      <li>
+        <span class="when">Early October</span>
+        <h3>Back to us</h3>
+        <p>Jab hum wapas baat karne lage, tab aur clear hua ki main tumhare saath cheezein honestly aur patiently build karna chahta hoon. Perfect nahi hoon, par effort sach mein karna chahta hoon.</p>
+      </li>
+      <li>
+        <span class="when">18 October 2026, 14:42</span>
+        <h3>Day 100</h3>
+        <p>100 days of us talking, laughing, sharing random things aur ek dusre ko samajhne ki koshish. 14:42 isliye, kyunki kuch moments chhote hote hain, par unka meaning bahut bada ho jaata hai.</p>
+      </li>
+    </ol>
+
+    <article class="letter">
+      <p>My little star, माझी गोड पुराणाची poli, ❤️</p>
+      <p>Convocation ke din ke baad main sochta tha ki shayad ab hum kabhi milenge hi nahi. Phir woh chhota sa “hi”, tumhara phone Ketaki ke paas rakhna, tumhara woh yellow-shade wala saree pehenna… and somehow hum baat karne lage. Tumhe toh pata hi hai main wahan kaise end up hua tha. 😂</p>
+      <p>Do saal same college mein the. Na maine kabhi tumhe approach kiya, na tumne mujhe. Aur ab haal yeh hai ki ek dusre se baat kiye bina din complete hi nahi lagta. Kabhi kabhi sochta hoon, itna time same jagah rehkar bhi humne ek dusre ko properly jaana hi nahi tha.</p>
+      <p>Haan, main itni romantic baatein nahi kar sakta. But whenever I see a beautiful view, pata nahi kyun usse tumse compare karne lagta hoon. Tum bhi us view ki tarah calm and soothing ho. Jaise sunset ki woh last golden light, jo poore din ki thakaan ke baad sab kuch shaant kar deti hai. Jaise raat ke sky mein moon, jo bina kuch kahe bhi attention kheench leta hai. Kabhi tum morning dawn jaisi lagti ho, jab sab kuch naya aur possible sa lagta hai. Aur kabhi movie ke us quiet cinematic shot jaisi, jahan duniya ka noise ruk jaata hai aur bas ek peaceful sa moment reh jaata hai. I admire how you handle things on your own, manage so much without telling anyone, and still find a way to comfort someone else.</p>
+      <p>And you always stay for me. You reassure my OT and insecurity-wala mind. Main past mein stuck nahi rehna chahta, but mera brain patterns se seekhta hai na, toh kabhi kabhi kuch hota hai and woh phir se waise hi sochne lagta hai. Mujhe pata hai usse tum irritate bhi hoti ho, but phir bhi main tumhare saath apni feelings share karta hoon, aur tum mujhe reassurance deti ho. Thank you for being patient with me.</p>
+      <p>Bas kabhi kabhi mujhe aisa feel hota hai ki tum kuch cheezein mujhe tab batati ho jab sab ho chuka hota hai. Main chahta hoon ki main tumhe storm ke baad shade dene wala nahi, storm ke beech tumhare saath khada rehne wala banu. Jab bhi tum kahin stuck ho, jab bhi kuch difficult ho, mujhe batao na. Main help karna chahta hoon, tumhara care karna chahta hoon, just the way you do for me. Har cheez tumhe akele handle karne ki zaroorat nahi hai, baby.</p>
+      <p>Humare beech sab kuch hamesha perfect nahi raha, aur mujhse bhi galtiyan hui hain. But main chahta hoon ki tumhe sirf meri baaton se nahi, mere actions se bhi feel ho ki you matter to me.</p>
+      <p>Thank you meri life mein aane ke liye, mujhe sunne ke liye, aur itni saari beautiful memories dene ke liye. Tum mere liye genuinely special ho, Ishu. ❤️</p>
+      <p>Aur haan madam, tumhara naam screen pe aata hai na, toh smile aaj bhi apne aap aa jaati hai. 🥹❤️</p>
+      <p><strong>Happy 100 days to us. Tumhare saath abhi bahut saari memories banani hain.</strong></p>
+      <p class="sign">— Tumhara Mr Robot / Giraffe / Buddhu / Ishu baby ka BF, Tanu baby ❤️</p>
+    </article>
+
+    <section class="end">
+      <h2>Here’s to day 101</h2>
+      <button class="btn" id="heartBtn">Tap for one more thing</button>
+      <p class="answer" id="answer" aria-live="polite"></p>
+    </section>
+
+  </div>
+</main>
+
+<script>
+(function(){
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var lock = document.getElementById('lock');
+  var story = document.getElementById('story');
+  var opened = false;
+
+  document.getElementById('openBtn').addEventListener('click', function(){
+    if (opened) return; opened = true;
+    lock.style.display = 'none';
+    story.classList.add('open');
+    window.scrollTo(0,0);
+    playChat();
+  });
+
+  function playChat(){
+    var m1 = document.getElementById('m1'), m2 = document.getElementById('m2'), t = document.getElementById('typing');
+    if (reduce){ m1.classList.add('show'); m2.classList.add('show'); return; }
+    setTimeout(function(){ m1.classList.add('show'); }, 400);
+    setTimeout(function(){ t.classList.add('show'); }, 1300);
+    setTimeout(function(){ t.classList.remove('show'); m2.classList.add('show'); }, 3100);
+  }
+
+  // Chats started 10 July 2026 (midnight IST = 9 July 18:30 UTC)
+  var start = Date.UTC(2026, 6, 9, 18, 30, 0);
+  function tick(){
+    var diff = Math.max(0, Date.now() - start);
+    var d = Math.floor(diff / 86400000);
+    var h = Math.floor(diff / 3600000) % 24;
+    var m = Math.floor(diff / 60000) % 60;
+    var s = Math.floor(diff / 1000) % 60;
+    document.getElementById('days').textContent = d;
+    document.getElementById('live').textContent =
+      d + ' days, ' + h + ' hours, ' + m + ' minutes and ' + s + ' seconds of talking to you';
+  }
+  tick(); setInterval(tick, 1000);
+
+  var lines = [
+    'Thank you, madam, us din meri story dekh ke concern dikhane ke liye. Tumhara woh question mujhe yaad rahega. ❤️',
+    'Tumhara naam screen pe aaye toh smile apne aap aa jaati hai, Ishu. ❤️',
+    'Day 101 pe bhi tumhe tang karunga… same time, 14:42? 😂❤️'
+  ];
+  var i = 0;
+  document.getElementById('heartBtn').addEventListener('click', function(e){
+    document.getElementById('answer').textContent = lines[i % lines.length];
+    i++;
+    if (i >= lines.length) e.currentTarget.textContent = 'Tap again';
+    if (reduce) return;
+    for (var k = 0; k < 14; k++){
+      var h = document.createElement('span');
+      h.className = 'heart';
+      h.textContent = ['❤','💗','💕','🌸'][k % 4];
+      h.style.left = (10 + Math.random() * 80) + 'vw';
+      h.style.top = (75 + Math.random() * 20) + 'vh';
+      h.style.animationDelay = (Math.random() * .5) + 's';
+      document.body.appendChild(h);
+      setTimeout(function(el){ return function(){ el.remove(); }; }(h), 3300);
+    }
+  });
+})();
+</script>
+</body>
+</html>
