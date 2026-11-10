@@ -1,33 +1,32 @@
 <!doctype html>
-<html lang="th">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ASCII Lily Bouquet</title>
+<title>A Bouquet for Ishu</title>
 <style>
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
-  /* ภาพเต็มหน้าต่างเบราว์เซอร์ (ขยายให้ใหญ่ที่สุดโดยไม่ตัดดอกไม้ ส่วนที่เหลือเป็นสีดำ) */
   canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; display: block;
     object-fit: contain; background: #000; }
 </style>
 </head>
 <body>
-<canvas id="view" aria-label="ช่อดอกลิลลี่ที่วาดด้วยตัวอักษร"></canvas>
+<canvas id="view" aria-label=""></canvas>
 
 <script>
 "use strict";
-// ================================================================ ตั้งค่า
+// ================================================================ Settings
 const FONT_SIZE = 10, FPS = 30;
 const FONT = `${FONT_SIZE}px Menlo, Consolas, "DejaVu Sans Mono", "Courier New", monospace`;
 const probe = document.createElement("canvas").getContext("2d");
 probe.font = FONT;
 const CW = Math.max(1, Math.round(probe.measureText("M").width)), CH = Math.round(FONT_SIZE * 1.15);
-// ตารางตัวอักษร: สูง 160 แถวเสมอ ส่วนความกว้างปรับตามสัดส่วนหน้าต่าง -> ภาพเต็มเบราว์เซอร์พอดี
+// The character grid always has 160 rows; its width adjusts to the window aspect ratio.
 const ROWS = 160;
 const COLS = Math.max(150, Math.min(640, Math.round(ROWS * CH / CW * innerWidth / Math.max(1, innerHeight))));
 const N = COLS * ROWS;
 const WAVE_PERIOD = 14, BREATH = 7, BREATH_DEPTH = 0.18;
-const settings = { wind: 3, size: 1.8, glow: 0.6 };   // แรงลม, ขนาดดอก, แสงฟุ้ง
+const settings = { wind: 3, size: 1.8, glow: 0.6 };   // Wind strength, flower size, glow
 
 const BUCKETS = [" ", ".'`", ":;,-~", "!/\\|()[]{}<>?+=", "tfjrxnuvczil", "XYUJCLQ0OZmwqpdbkhao", "#MW&8%B", "@$"];
 const LEVELS = [0.06, 0.15, 0.30, 0.45, 0.60, 0.75, 0.90];
@@ -42,7 +41,7 @@ const PALETTES = {
   coral:  { deep: [0.88, 0.30, 0.22], mid: [1.00, 0.55, 0.45], tip: [1.00, 0.84, 0.74], sheen: [1.00, 0.92, 0.85], spots: 5 },
   red:    { deep: [0.30, 0.01, 0.05], mid: [0.72, 0.03, 0.10], tip: [0.92, 0.22, 0.30], sheen: [1.00, 0.52, 0.58], spots: 9 },
 };
-// (ตำแหน่ง, ขนาด, ทิศดอก 3D, สี, วินาทีที่เริ่มบาน, ความสว่าง) — เรียงจากหลังไปหน้า
+// (Position, size, 3D flower direction, colour, bloom start time, brightness) — ordered back to front
 const FLOWERS_BASE = [
   [[-25, 34], 15, [-0.5, -0.55, 0.68], "white", 5.4, 0.78],
   [[24, 30], 15, [0.5, -0.6, 0.62], "yellow", 5.8, 0.78],
@@ -56,7 +55,7 @@ const FLOWERS_BASE = [
   [[18, 88], 21, [0.3, -0.14, 0.94], "white", 4.2, 1.0],
   [[1, 114], 20, [0.02, -0.28, 0.96], "coral", 4.6, 1.0],
 ];
-// ดอกตูม (ตำแหน่ง, ขนาด, ทิศ, ความสุก, สี)
+// Flower buds (position, size, direction, ripeness, colour)
 const BUDS_BASE = [
   [[-12, 10], 9, [-0.3, -0.95, 0.1], 0.0, "red"],
   [[13, 7], 9, [0.35, -0.93, 0.1], 0.9, "pink"],
@@ -65,12 +64,12 @@ const BUDS_BASE = [
   [[24, 68], 7, [0.6, -0.7, 0.3], 0.0, "red"],
 ];
 
-// ================================================================ คณิตศาสตร์
+// ================================================================ Mathematics
 const TAU = Math.PI * 2, rad = (d) => d * Math.PI / 180;
 const clamp = (x, lo = 0, hi = 1) => (x < lo ? lo : x > hi ? hi : x);
 function smoothstep(a, b, x) { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); }
 const wave = (t, k, ph = 0) => Math.sin(TAU * k * t / WAVE_PERIOD + ph);
-function hash3(a, b, c) {                       // สุ่มแบบคงที่: ใส่เลขเดิมได้ผลเดิม
+function hash3(a, b, c) {                       // Deterministic random: the same inputs always produce the same result
   let h = (Math.imul(a, 73856093) ^ Math.imul(b, 19349663) ^ Math.imul(c, 83492791)) >>> 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0;
   return (h ^ (h >>> 16)) >>> 0;
@@ -81,22 +80,22 @@ const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const norm = (v) => mul(v, 1 / (Math.hypot(v[0], v[1], v[2]) + 1e-9));
-const LIGHT = norm([-0.5, -0.6, 0.62]);        // แสงจากซ้ายบน
+const LIGHT = norm([-0.5, -0.6, 0.62]);        // Light source from the upper left
 
-// ================================================================ ผ้าใบ (ความสว่าง + สี ของแต่ละช่อง)
+// ================================================================ Canvas (brightness + colour for each cell)
 const Xc = new Float32Array(COLS), Yr = new Float32Array(ROWS);
-for (let c = 0; c < COLS; c++) Xc[c] = (c + 0.5 - COLS / 2) * 0.5;   // ช่องกว้างครึ่งหนึ่งของความสูง
+for (let c = 0; c < COLS; c++) Xc[c] = (c + 0.5 - COLS / 2) * 0.5;   // Each character cell is half as wide as it is tall
 for (let r = 0; r < ROWS; r++) Yr[r] = r + 0.5;
 const lum = new Float32Array(N), rgb = new Float32Array(N * 3), rowShift = new Float32Array(ROWS);
 const bgLum = new Float32Array(N), bgRgb = new Float32Array(N * 3);
-for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {       // จุดม่วงจาง ๆ หลังช่อดอก
+for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {       // Faint purple dots behind the bouquet
   const r2 = (Xc[c] / Math.max(40, COLS * 0.21)) ** 2 + ((Yr[r] - 75) / 80) ** 2, i = r * COLS + c;
   if (hash3(r, c, 1) % 100 < 35) { bgLum[i] = 0.13 * Math.exp(-r2 * 1.6); bgRgb.set([0.45, 0.2, 0.55], i * 3); }
 }
 function set(i, l, cr, cg, cb) { lum[i] = l; const j = i * 3; rgb[j] = cr; rgb[j + 1] = cg; rgb[j + 2] = cb; }
 
-// วาดรูปเรียวไปตามเส้นโค้ง: เรียก fn(ช่อง, ตำแหน่งตามยาว a, ระยะขวาง q -1..1, แถว, คอลัมน์) ทุกช่องที่อยู่ข้างใน
-const SEG = new Float64Array(16 * 9);            // ข้อมูลแต่ละท่อน (คำนวณครั้งเดียวต่อการวาด)
+// Draw a tapered shape along a curve: fn(cell, length position a, crosswise distance q -1..1, row, column) is called for each interior cell.
+const SEG = new Float64Array(16 * 9);            // Segment data (calculated once per draw)
 function brush(pts, hws, av, fn) {
   const n = pts.length, ns = n - 1;
   if (n < 2) return;
@@ -114,8 +113,8 @@ function brush(pts, hws, av, fn) {
   const pad = maxw + 1;
   const r0 = Math.max(0, Math.floor(ymin - pad)), r1 = Math.min(ROWS, Math.ceil(ymax + pad));
   for (let r = r0; r < r1; r++) {
-    const py = Yr[r], sh = rowShift[r];                // ลมเลื่อนแถวนี้ไปเท่าไหร่ -> เลื่อนกรอบตาม
-    let rx0 = 1e9, rx1 = -1e9;                          // ช่วงแนวนอนที่รูปผ่านแถวนี้จริง ๆ
+    const py = Yr[r], sh = rowShift[r];                // Wind shifts this row, so shift the bounding frame too
+    let rx0 = 1e9, rx1 = -1e9;                          // Horizontal range actually crossed by the shape on this row
     for (let s = 0, o = 0; s < ns; s++, o += 9) {
       const pw = Math.max(SEG[o + 5], SEG[o + 5] + SEG[o + 6]) + 1;
       const ya = SEG[o + 1], yb = ya + SEG[o + 3];
@@ -128,7 +127,7 @@ function brush(pts, hws, av, fn) {
     const c1 = Math.min(COLS, Math.ceil((rx1 + sh) * 2 + COLS / 2));
     for (let c = c0; c < c1; c++) {
       const px = Xc[c] - sh;
-      let best = 1, bestS = -1, bestU = 0;            // เก็บแบบยกกำลังสอง (ไม่ต้องถอดราก)
+      let best = 1, bestS = -1, bestU = 0;            // Store squared distance (no square root needed)
       for (let s = 0, o = 0; s < ns; s++, o += 9) {
         const qx = px - SEG[o], qy = py - SEG[o + 1], dx = SEG[o + 2], dy = SEG[o + 3];
         let u = (qx * dx + qy * dy) * SEG[o + 4];
@@ -150,7 +149,7 @@ function brush(pts, hws, av, fn) {
 const lin = (n) => Array.from({ length: n }, (_, k) => k / (n - 1));
 const lerp3 = (a, b, k) => { k = clamp(k); return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]; };
 
-// ================================================================ ก้าน / ใบ
+// ================================================================ Stems / leaves
 function tube(pts, w0, w1, col) {
   const n = pts.length;
   if (n < 2) return;
@@ -172,38 +171,38 @@ function curve(p0, p1, bulge, grow, n = 10) {
   return out;
 }
 const LEAF_D = [0.07, 0.36, 0.13], LEAF_L = [0.38, 0.76, 0.32], UNDER = [0.46, 0.68, 0.50], OLD_TIP = [0.70, 0.66, 0.26];
-// ใบลิลลี่แบบธรรมชาติ: แคบยาว ปลายแหลม โค้งลงตามน้ำหนัก บางใบหักพับ บางใบบิดจนเห็นด้านใต้ใบ
+// Natural lily leaves: narrow and long, pointed tips, drooping under their weight; some fold and some twist to show their undersides.
 function leaf(L, t, unfurl) {
   if (unfurl <= 0.01) return;
   const n = 12, len = L.len * (0.3 + 0.7 * unfurl), wid = L.wid * (0.4 + 0.6 * unfurl);
-  const ang0 = L.stemAng + (L.ang - L.stemAng) * unfurl;                  // ใบคลี่ออกจากแนวก้าน
+  const ang0 = L.stemAng + (L.ang - L.stemAng) * unfurl;                  // Leaf unfurls away from the stem
   const sway = rad(4) * wave(t, 3, L.seed);
   const pts = [], hws = [];
   let x = L.x, y = L.y;
   for (let k = 0; k < n; k++) {
     const a = k / (n - 1);
     pts.push([x, y]);
-    const tw = Math.cos(L.twist * a + L.phase);                            // บิดตัว = ความกว้างที่เห็นเปลี่ยน
+    const tw = Math.cos(L.twist * a + L.phase);                            // Twisting changes the visible width
     hws.push(Math.max(0.06, wid * Math.pow(Math.sin(Math.PI * Math.pow(a, 0.5)), 0.85) * (0.2 + 0.8 * Math.abs(tw))));
-    const bend = L.droop * Math.pow(a, 1.6) + L.kink * smoothstep(L.kinkAt - 0.05, L.kinkAt + 0.05, a);   // โค้งลง + หักพับ
+    const bend = L.droop * Math.pow(a, 1.6) + L.kink * smoothstep(L.kinkAt - 0.05, L.kinkAt + 0.05, a);   // Droop + fold
     const ang = ang0 + sway * a + L.dir * bend * unfurl;
     x += Math.cos(ang) * len / (n - 1); y += Math.sin(ang) * len / (n - 1);
   }
   brush(pts, hws, lin(n), (i, a, q) => {
     const aq = Math.abs(q), back = Math.cos(L.twist * a + L.phase) < 0;
-    const lit = (q > 0) !== back ? 1 : 0;                                  // ใบพับเป็นตัว V: ซีกหนึ่งรับแสง
+    const lit = (q > 0) !== back ? 1 : 0;                                  // One folded half catches the light
     let l = (0.42 + 0.28 * lit + 0.22 * Math.pow(1 - aq, 0.7)) * (0.88 + 0.12 * Math.cos(q * Math.PI * 6));
-    if (aq < 0.08) l = back ? 0.78 : 0.34;                                  // เส้นกลางใบ: ด้านบนเป็นร่อง ด้านใต้นูน
-    else if (aq > 0.88) l += 0.12;                                          // ขอบใบรับแสง
-    l *= 0.8 + 0.2 * clamp(a * 6);                                          // โคนใบอยู่ในเงาก้าน
-    let c = back ? lerp3(mul(UNDER, 0.8), UNDER, 0.4 + 0.6 * (1 - aq))      // ด้านใต้ใบ: เขียวอมฟ้าอ่อน
+    if (aq < 0.08) l = back ? 0.78 : 0.34;                                  // Leaf midrib: groove above, raised below
+    else if (aq > 0.88) l += 0.12;                                          // Highlighted leaf edge
+    l *= 0.8 + 0.2 * clamp(a * 6);                                          // Leaf base is shaded by the stem
+    let c = back ? lerp3(mul(UNDER, 0.8), UNDER, 0.4 + 0.6 * (1 - aq))      // Underside: pale blue-green
                  : lerp3(LEAF_D, LEAF_L, 0.3 + 0.45 * lit + 0.25 * (1 - aq));
-    if (L.old) c = lerp3(c, OLD_TIP, (a - 0.8) * 4);                        // ปลายใบแก่เหลืองนิด ๆ
+    if (L.old) c = lerp3(c, OLD_TIP, (a - 0.8) * 4);                        // Slightly yellowed old leaf tip
     set(i, clamp(l), c[0], c[1], c[2]);
   });
 }
 
-// ================================================================ ดอกลิลลี่ 3 มิติ
+// ================================================================ 3D lily flowers
 const BUD09 = mul(BUD, 0.9), STAMEN = [0.78, 0.55, 0.45];
 function lily(center, axis, size, openness, ripe, t, seed, pal, bright) {
   if (size <= 0.3) return;
@@ -215,8 +214,8 @@ function lily(center, axis, size, openness, ripe, t, seed, pal, bright) {
   for (let k = 0; k < 6; k++) {
     const inner = k % 2 === 1, phi = spin + k * Math.PI / 3;
     const radial = add(mul(u3, Math.cos(phi)), mul(v3, Math.sin(phi))), tangent = cross(a3, radial);
-    const theta = rad(5 + (inner ? 70 : 78) * openness);                  // มุมกางกลีบ
-    const curl = rad(50) * Math.pow(Math.max(openness, 0), 1.5);           // ปลายกลีบม้วนกลับ
+    const theta = rad(5 + (inner ? 70 : 78) * openness);                  // Petal opening angle
+    const curl = rad(50) * Math.pow(Math.max(openness, 0), 1.5);           // Petal tips curl back
     const L = size * (inner ? 0.94 : 1), W = size * (inner ? 0.26 : 0.2), n = 9;
     const pts3 = [], hws = [];
     let p = add(c3, mul(radial, size * 0.04));
@@ -228,13 +227,13 @@ function lily(center, axis, size, openness, ripe, t, seed, pal, bright) {
       p = add(p, mul(add(mul(a3, Math.cos(th)), mul(radial, Math.sin(th))), L / (n - 1)));
     }
     const normal = norm(cross(norm(sub(pts3[4], pts3[0])), tangent)), facing = normal[2];
-    const tproj = Math.hypot(tangent[0], tangent[1]);                       // กลีบหันข้าง = ดูแคบลง
+    const tproj = Math.hypot(tangent[0], tangent[1]);                       // Side-facing petals appear narrower
     petals.push({
       depth: pts3.reduce((s, q) => s + q[2], 0) / n, pts: pts3.map((q) => [q[0], q[1]]),
       hws: hws.map((h) => Math.max(h * Math.max(tproj, 0.3), 0.08)), normal, facing, pseed: seed * 10 + k,
     });
   }
-  petals.sort((a, b) => a.depth - b.depth);                                // ไกลก่อน ใกล้ทีหลัง
+  petals.sort((a, b) => a.depth - b.depth);                                // Draw far petals first, near petals last
   const dim = 0.55 + 0.45 * bright, av = lin(9);
   for (const pt of petals) {
     const sg = pt.facing < 0 ? -1 : 1;
@@ -243,17 +242,17 @@ function lily(center, axis, size, openness, ripe, t, seed, pal, bright) {
     brush(pt.pts, pt.hws, av, (i, a, q, r, c) => {
       const aq = Math.abs(q);
       let l = light * (0.62 + 0.38 * Math.pow(1 - aq, 0.6)) * (back ? 0.8 : 1);
-      l *= 0.75 + 0.35 * clamp(a * 2);                                      // โคนกลีบมืด
-      if (aq < 0.1) l *= 0.65;                                              // ร่องกลางกลีบ
+      l *= 0.75 + 0.35 * clamp(a * 2);                                      // Petal base is darker
+      if (aq < 0.1) l *= 0.65;                                              // Petal centre groove
       let col = lerp3(pal.deep, pal.mid, a * 2.4);
       col = lerp3(col, pal.tip, (a - 0.55) * 1.8 + (aq - 0.7) * 1.6);
-      col = lerp3(col, pal.sheen, (light - 0.75) * 2.5 * (1 - aq));       // เงามันเมื่อรับแสง
-      col = lerp3(BUD09, col, ripe * clamp(0.3 + a * 1.5) + ripe * 0.3);    // ตูมอ่อน = เขียว
-      if (a < 0.4 && a > 0.08 && openness > 0.4 && hash3(c, r, pt.pseed) % 100 < spotRate) l = 0.2;   // จุดกระ
+      col = lerp3(col, pal.sheen, (light - 0.75) * 2.5 * (1 - aq));       // Glossy sheen in the light
+      col = lerp3(BUD09, col, ripe * clamp(0.3 + a * 1.5) + ripe * 0.3);    // Unripe buds retain green tones
+      if (a < 0.4 && a > 0.08 && openness > 0.4 && hash3(c, r, pt.pseed) % 100 < spotRate) l = 0.2;   // Petal speckles
       set(i, clamp(l) * bright, col[0] * dim, col[1] * dim, col[2] * dim);
     });
   }
-  const show = smoothstep(0.35, 0.85, openness);                          // เกสร
+  const show = smoothstep(0.35, 0.85, openness);                          // Stamens appear as the flower opens
   if (show <= 0) return;
   for (let k = 0; k < 7; k++) {
     const pistil = k === 6, phi = k * TAU / 6 + 0.3;
@@ -269,20 +268,20 @@ function lily(center, axis, size, openness, ripe, t, seed, pal, bright) {
   }
 }
 
-// ================================================================ จัดวาง
-const rnd = (k) => hash3(k, 911, 37) / 4294967296;      // สุ่มแบบคงที่ 0..1
-const STEM_DUR = 1.0;                                   // ก้านงอกจากพื้นถึงปลายใช้กี่วินาที
-const easeOut = (x) => 1 - Math.pow(1 - clamp(x), 3);   // งอกเร็วตอนแรกแล้วค่อย ๆ ช้าลง
+// ================================================================ Layout
+const rnd = (k) => hash3(k, 911, 37) / 4294967296;      // Deterministic random value from 0 to 1
+const STEM_DUR = 1.0;                                   // Time for a stem to grow from the ground to its tip
+const easeOut = (x) => 1 - Math.pow(1 - clamp(x), 3);   // Fast growth at first, then slowing down
 let FLOWERS = [], BUDS = [];
 
-function pathAt(path, frac) {                           // จุดและทิศของก้าน ณ สัดส่วน frac
+function pathAt(path, frac) {                           // Stem position and direction at fraction frac
   const f = frac * (path.length - 1), k = Math.min(path.length - 2, Math.floor(f)), u = f - k;
   const a = path[k], b = path[k + 1];
   return { x: a[0] + (b[0] - a[0]) * u, y: a[1] + (b[1] - a[1]) * u, ang: Math.atan2(b[1] - a[1], b[0] - a[0]) };
 }
 
 function buildLayout() {
-  const fl = FLOWERS_BASE.map(([pos, size, axis, col, tOpen, bright], i) => ({     // ช่อดอกรวมก้านที่โคน
+  const fl = FLOWERS_BASE.map(([pos, size, axis, col, tOpen, bright], i) => ({     // Build flowers with stems joined at the base
     pos, size, axis, col, bright, baseX: pos[0] * 0.12, bulge: 2.5 * Math.sign(pos[0] || 1) * (i % 2 ? 1 : -0.6),
     start: 0.05 + 0.035 * i, tOpen: 1.7 + (tOpen - 3.9) * 0.55,
   }));
@@ -291,13 +290,13 @@ function buildLayout() {
     start: 0.15 + 0.05 * i,
   }));
   for (const o of [...fl, ...bd]) {
-    o.end = o.start + STEM_DUR;                                     // เวลาที่ก้านงอกถึงปลาย
+    o.end = o.start + STEM_DUR;                                     // Time when stem growth reaches the tip
     o.path = curve([o.baseX, 172], o.pos, o.bulge, 1, 14);
   }
   fl.forEach((f, i) => {
-    f.tOpen = Math.max(f.tOpen, f.end + 0.6);                       // ดอกบานหลังก้านถึงปลายแล้วเท่านั้น
+    f.tOpen = Math.max(f.tOpen, f.end + 0.6);                       // Flowers open only after their stems finish growing
     const front = f.bright > 0.8;
-    // ติดใบเฉพาะช่วงก้านที่อยู่ในจอ (โคนก้านอยู่นอกจอด้านล่าง)
+    // Attach leaves only to the visible part of the stem (the base is below the screen)
     const fv0 = clamp((172 - (ROWS - 4)) / (172 - f.pos[1]), 0.04, 0.6), fv1 = Math.min(0.78, fv0 + 0.62);
     const fracs = front ? [0, 0.25, 0.5, 0.75, 1].map((u) => fv0 + (fv1 - fv0) * u) : [0.55, 0.72];
     f.leaves = fracs.map((fr, j) => {
@@ -310,7 +309,7 @@ function buildLayout() {
         droop: rad(25 + rnd(sd + 4) * 45) * (1 - frac * 0.6),
         kink: rnd(sd + 5) < 0.45 ? rad(40 + rnd(sd + 6) * 45) : 0, kinkAt: 0.4 + rnd(sd + 7) * 0.3,
         twist: 1 + rnd(sd + 8) * 2.6, phase: rnd(sd + 9) * TAU, old: rnd(sd + 10) < 0.25,
-        tAt: f.start + STEM_DUR * (1 - Math.cbrt(1 - frac)),         // เวลาที่ก้านงอกผ่านจุดติดใบ
+        tAt: f.start + STEM_DUR * (1 - Math.cbrt(1 - frac)),         // Time when the growing stem reaches the leaf
       };
     });
   });
@@ -318,21 +317,21 @@ function buildLayout() {
 }
 buildLayout();
 
-// ================================================================ ฉาก
+// ================================================================ Scene
 function scene(t) {
-  for (let r = 0; r < ROWS; r++) {                                         // ลม: ยิ่งสูงยิ่งไหว
+  for (let r = 0; r < ROWS; r++) {                                         // Wind: higher rows sway more
     const h = clamp((ROWS + 10 - Yr[r]) / 140), w = t - 0.4 * h;
     rowShift[r] = settings.wind * (0.6 * wave(w, 2) + 0.3 * wave(w, 3, 1) + 0.1 * wave(w, 5, 2)) * Math.pow(h, 1.5);
   }
   lum.set(bgLum); rgb.set(bgRgb);
   const growOf = (o) => easeOut((t - o.start) / STEM_DUR);
 
-  for (const f of FLOWERS) for (const L of f.leaves) leaf(L, t, smoothstep(L.tAt, L.tAt + 0.55, t));   // ใบคลี่เมื่อก้านงอกผ่าน
+  for (const f of FLOWERS) for (const L of f.leaves) leaf(L, t, smoothstep(L.tAt, L.tAt + 0.55, t));   // Leaves unfurl as the stem grows past them
   for (const b of BUDS) tube(curve([b.baseX, 172], b.pos, b.bulge, growOf(b), 14), 0.7, 0.45, STEM);
   for (const f of FLOWERS) tube(curve([f.baseX, 172], f.pos, f.bulge, growOf(f), 14), 0.85, 0.5, STEM);
 
-  FLOWERS.forEach((f, i) => {                                              // ดอก (หลังไปหน้า)
-    if (t < f.end) return;                                                 // ผุดหลังก้านงอกถึงปลายแล้วเท่านั้น
+  FLOWERS.forEach((f, i) => {                                              // Flowers (back to front)
+    if (t < f.end) return;                                                 // Appear only after the stem reaches the tip
     const swell = smoothstep(f.end, f.end + 0.6, t);
     const ripe = smoothstep(f.tOpen - 1.0, f.tOpen + 0.3, t);
     const opening = smoothstep(f.tOpen, f.tOpen + 1.6, t);
@@ -342,14 +341,14 @@ function scene(t) {
     const s = f.size * settings.size * (0.35 + 0.65 * swell) * (0.5 + 0.5 * Math.max(openness, ripe * 0.6));
     lily(f.pos, f.axis, s, openness, ripe, t, i * 7 + 3, PALETTES[f.col], f.bright);
   });
-  BUDS.forEach((b, i) => {                                                 // ดอกตูม
+  BUDS.forEach((b, i) => {                                                 // Flower buds
     if (t < b.end) return;
     const swell = smoothstep(b.end, b.end + 0.6, t);
     lily(b.pos, b.axis, b.size * (0.4 + 0.6 * swell), 0.04 + 0.03 * wave(t, 2, i),
       b.ripe * swell, t, 90 + i, PALETTES[b.col], 0.9);
   });
 
-  const pv = 0.5 * smoothstep(3, 4.5, t), off = Math.floor(t * 4);       // จุดทองลอยขึ้นช้า ๆ เหมือนหิ่งห้อย
+  const pv = 0.5 * smoothstep(3, 4.5, t), off = Math.floor(t * 4);       // Tiny golden particles float like fireflies
   if (pv > 0) for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
     const i = r * COLS + c;
     if (lum[i] < 0.1 && hash3(c, r + off, 77) % 1000 < 2) set(i, pv, 1, 0.8, 0.4);
@@ -358,13 +357,13 @@ function scene(t) {
   if (fade < 1) for (let i = 0; i < N; i++) lum[i] *= fade;
 }
 
-// ================================================================ ตัวอักษร -> ภาพ
+// ================================================================ Characters -> image
 const view = document.getElementById("view"), ctx = view.getContext("2d");
 const W = COLS * CW, H = ROWS * CH;
 view.width = W; view.height = H;
 const CHARS = BUCKETS.join(""), START = [], COUNT = BUCKETS.map((b) => b.length);
 BUCKETS.reduce((s, b, k) => { START[k] = s; return s + b.length; }, 0);
-const MASKS = [...CHARS].map((ch) => {                                     // วาดตัวอักษรเก็บไว้ล่วงหน้า
+const MASKS = [...CHARS].map((ch) => {                                     // Pre-render each character into a mask
   const g = document.createElement("canvas"); g.width = CW; g.height = CH;
   const gx = g.getContext("2d");
   gx.font = FONT; gx.textBaseline = "top"; gx.fillStyle = "#fff"; gx.fillText(ch, 0, 0);
@@ -372,7 +371,7 @@ const MASKS = [...CHARS].map((ch) => {                                     // �
   for (let k = 0; k < m.length; k++) m[k] = d[k * 4 + 3];
   return m;
 });
-const ascii = document.createElement("canvas"); ascii.width = W; ascii.height = H;   // ชั้นตัวอักษร (พื้นโปร่งใส)
+const ascii = document.createElement("canvas"); ascii.width = W; ascii.height = H;   // Transparent character layer
 const actx = ascii.getContext("2d");
 const img = actx.createImageData(W, H), px = img.data, px32 = new Uint32Array(px.buffer);
 
@@ -391,12 +390,12 @@ function draw(frame, t) {
     const k = (0.45 + 0.75 * L) * 1.6 / 255 * 255, j = i * 3;
     const R = rgb[j] * k, G = rgb[j + 1] * k, B = rgb[j + 2] * k;
     let o0 = (r * CH) * W + c * CW, mi = 0;
-    for (let y = 0; y < CH; y++, o0 += W) {               // เขียนทีละพิกเซล (4 ไบต์รวดเดียว)
+    for (let y = 0; y < CH; y++, o0 += W) {               // Write one pixel at a time (four bytes at once)
       for (let x = 0; x < CW; x++, mi++) {
         const v = m[mi];
         if (v) {
           const pr = Math.min(255, 255 * R) | 0, pg = Math.min(255, 255 * G) | 0, pb = Math.min(255, 255 * B) | 0;
-          px32[o0 + x] = (v << 24) | (pb << 16) | (pg << 8) | pr;     // ความทึบ = ความหนาของเส้นตัวอักษร
+          px32[o0 + x] = (v << 24) | (pb << 16) | (pg << 8) | pr;     // Character stroke thickness controls opacity
         }
       }
     }
@@ -404,7 +403,7 @@ function draw(frame, t) {
   actx.putImageData(img, 0, 0);
   ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
   ctx.drawImage(ascii, 0, 0);
-  if (settings.glow > 0) {                                                 // แสงฟุ้งรอบดอก: ย่อภาพลงทีละครึ่งแล้วขยายทับ
+  if (settings.glow > 0) {                                                 // Glow around flowers: repeatedly shrink and enlarge the image
     let src = ascii;
     for (const g of [glowA, glowB, glowC]) {
       const gx = g.getContext("2d");
@@ -419,7 +418,7 @@ function draw(frame, t) {
   }
 }
 
-// ================================================================ เล่น
+// ================================================================ Animation loop
 let t0 = performance.now(), lastDraw = -1e9;
 function tick(now) {
   if (now - lastDraw >= 1000 / FPS - 2) {
@@ -432,7 +431,7 @@ function tick(now) {
 }
 requestAnimationFrame(tick);
 
-// เปลี่ยนขนาดหน้าต่างจนสัดส่วนต่างไปมาก -> โหลดใหม่ให้ภาพเต็มจอพอดีอีกครั้ง
+// Reload if the window aspect ratio changes significantly, so the animation fills the screen again.
 let resizeTimer = 0;
 addEventListener("resize", () => {
   clearTimeout(resizeTimer);
