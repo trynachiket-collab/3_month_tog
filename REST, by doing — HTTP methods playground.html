@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>REST, by doing — an interactive HTTP playground</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EEF3F9; --surface:#FFFFFF; --sunk:#F5F8FC; --ink:#15223A; --muted:#56667F; --line:#D2DBE7;
+  --get:#1D8656; --post:#2360C4; --put:#A86F12; --patch:#7646BE; --delete:#BF3B34; --head:#2F7585; --options:#5E6675;
+  --ok:#1D8656; --warn:#A86F12; --bad:#BF3B34; --info:#2360C4;
+  --code-bg:#F3F6FA; --focus:#2360C4;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0E1524; --surface:#162038; --sunk:#111A2E; --ink:#E5EBF5; --muted:#9AA8BF; --line:#2A3755;
+    --get:#4CC48C; --post:#6EA2F5; --put:#E2A84A; --patch:#B08AF0; --delete:#F07A72; --head:#5FB8C9; --options:#A3AAB8;
+    --ok:#4CC48C; --warn:#E2A84A; --bad:#F07A72; --info:#6EA2F5;
+    --code-bg:#0F1829; --focus:#6EA2F5;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0E1524; --surface:#162038; --sunk:#111A2E; --ink:#E5EBF5; --muted:#9AA8BF; --line:#2A3755;
+  --get:#4CC48C; --post:#6EA2F5; --put:#E2A84A; --patch:#B08AF0; --delete:#F07A72; --head:#5FB8C9; --options:#A3AAB8;
+  --ok:#4CC48C; --warn:#E2A84A; --bad:#F07A72; --info:#6EA2F5;
+  --code-bg:#0F1829; --focus:#6EA2F5;
+  color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55}
+a{color:var(--post)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
+.wrap{max-width:1240px;margin:0 auto;padding:0 20px}
+h1,h2,h3{font-family:var(--display);line-height:1.1;margin:0}
+h2{font-size:clamp(1.6rem,3vw,2.1rem);font-weight:800;letter-spacing:-.01em}
+h3{font-size:1.15rem;font-weight:700}
+p{margin:0}
+code,pre,textarea,.mono{font-family:var(--mono)}
+
+/* ---------- header ---------- */
+header.top{padding:40px 0 24px}
+.top-row{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+h1{font-size:clamp(2.2rem,6vw,4.2rem);font-weight:800;letter-spacing:-.025em;max-width:16ch}
+.lede{margin-top:14px;max-width:62ch;color:var(--muted);font-size:1.08rem}
+.theme-btn{background:var(--surface);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:8px 14px;font:500 .9rem var(--body);cursor:pointer;white-space:nowrap}
+
+/* ---------- wire ---------- */
+.wire{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;margin:6px 0 14px}
+.node{font-family:var(--display);font-weight:700;font-size:1rem;padding:10px 16px;border:2px solid var(--ink);border-radius:12px;background:var(--surface);min-width:120px;text-align:center}
+.node small{display:block;font-family:var(--body);font-weight:400;font-size:.78rem;color:var(--muted)}
+.node.busy{border-color:var(--post)}
+.track{position:relative;height:44px}
+.track::before{content:"";position:absolute;left:0;right:0;top:50%;border-top:2px dashed var(--line)}
+.packet{position:absolute;top:50%;left:0;transform:translate(0,-50%);height:30px;padding:0 12px;border-radius:999px;display:flex;align-items:center;font:700 .85rem var(--display);color:#fff;opacity:0;white-space:nowrap;pointer-events:none}
+.wire-caption{grid-column:1/-1;text-align:center;color:var(--muted);font-size:.88rem;min-height:1.4em}
+
+/* ---------- panels ---------- */
+.play{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px;min-width:0}
+.panel-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.hint{color:var(--muted);font-size:.85rem}
+
+.methods{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.m-btn{--c:var(--options);border:1.5px solid var(--c);color:var(--c);background:transparent;border-radius:8px;padding:6px 11px;font:700 .85rem var(--display);cursor:pointer;letter-spacing:.02em}
+.m-btn[aria-pressed="true"]{background:var(--c);color:var(--surface)}
+.url-row{display:flex;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:var(--sunk)}
+.url-row .base{padding:10px 0 10px 12px;color:var(--muted);font:400 .9rem var(--mono);white-space:nowrap}
+.url-row input{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);font:600 .92rem var(--mono);padding:10px 12px 10px 0}
+.url-row input:focus{outline:none}
+.url-row:focus-within{border-color:var(--focus)}
+label.field{display:block;font-weight:600;font-size:.88rem;margin:14px 0 6px}
+label.field span{font-weight:400;color:var(--muted)}
+textarea{width:100%;border:1.5px solid var(--line);border-radius:10px;background:var(--sunk);color:var(--ink);font-size:.85rem;padding:10px 12px;resize:vertical;line-height:1.5}
+textarea:focus{outline:none;border-color:var(--focus)}
+textarea:disabled{opacity:.55}
+.body-note{font-size:.82rem;color:var(--muted);margin-top:6px;min-height:1.2em}
+.actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center}
+.send{background:var(--ink);color:var(--surface);border:0;border-radius:10px;padding:11px 22px;font:700 1rem var(--display);cursor:pointer}
+.send:disabled{opacity:.5;cursor:wait}
+.ghost{background:transparent;border:1.5px solid var(--line);color:var(--ink);border-radius:10px;padding:9px 14px;font:500 .9rem var(--body);cursor:pointer}
+.ghost:hover{border-color:var(--ink)}
+.settings{margin-top:16px;padding-top:14px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px 20px;font-size:.88rem;align-items:center}
+.settings label{display:flex;gap:7px;align-items:center;cursor:pointer}
+.settings select{background:var(--sunk);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font:inherit}
+details.code{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+details.code summary{cursor:pointer;font-weight:600;font-size:.9rem}
+.tabs{display:flex;gap:4px;margin:10px 0 8px;flex-wrap:wrap}
+.tab{background:transparent;border:0;border-bottom:2px solid transparent;color:var(--muted);padding:4px 10px;font:600 .85rem var(--body);cursor:pointer}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink)}
+pre{margin:0;background:var(--code-bg);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:.8rem;overflow-x:auto;line-height:1.55;white-space:pre}
+
+/* response */
+.status-line{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.status-code{font:800 2.6rem var(--display);line-height:1}
+.status-text{font:700 1.2rem var(--display)}
+.status-meta{color:var(--muted);font-size:.85rem;margin-left:auto}
+.status-say{color:var(--muted);font-size:.92rem;margin-bottom:12px}
+.empty{color:var(--muted);padding:30px 4px;text-align:center}
+.empty strong{display:block;font-family:var(--display);font-size:1.15rem;color:var(--ink);margin-bottom:4px}
+.json .k{color:var(--post)} .json .s{color:var(--get)} .json .n{color:var(--put)} .json .b{color:var(--patch)}
+.hdr-table{width:100%;border-collapse:collapse;font-size:.82rem}
+.hdr-table td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.hdr-table td:first-child{font-family:var(--mono);font-weight:600;white-space:nowrap}
+.hdr-table td:last-child{font-family:var(--mono);word-break:break-all}
+.hdr-table td.why{font-family:var(--body);color:var(--muted);word-break:normal}
+
+/* ---------- lower row ---------- */
+.lower{display:grid;grid-template-columns:1.15fr 1fr;gap:18px;margin-top:18px}
+.table-scroll{overflow-x:auto}
+table.db{width:100%;border-collapse:collapse;font-size:.88rem}
+table.db th{text-align:left;font-weight:600;color:var(--muted);padding:6px 8px;border-bottom:2px solid var(--line);white-space:nowrap}
+table.db td{padding:8px;border-bottom:1px solid var(--line)}
+table.db td.id{font-family:var(--mono);font-weight:600}
+table.db td.nil{color:var(--muted);font-style:italic}
+tr.added{background:color-mix(in srgb,var(--get) 16%,transparent)}
+tr.changed{background:color-mix(in srgb,var(--put) 16%,transparent)}
+tr.removed{background:color-mix(in srgb,var(--delete) 14%,transparent);text-decoration:line-through;color:var(--muted)}
+tr.read{background:color-mix(in srgb,var(--post) 10%,transparent)}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:.8rem;color:var(--muted);margin-top:10px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+
+.explain h3{margin-bottom:8px}
+.explain p+p{margin-top:10px}
+.facts{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:14px 0}
+.fact{border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:.85rem}
+.fact b{display:block;font-family:var(--display);font-size:1rem}
+.fact .yes{color:var(--ok)} .fact .no{color:var(--bad)} .fact .maybe{color:var(--warn)}
+.callout{border-left:3px solid var(--patch);background:var(--sunk);padding:10px 12px;border-radius:0 8px 8px 0;font-size:.9rem;margin-top:12px}
+.callout.idem{border-left-color:var(--get)}
+
+/* ---------- sections ---------- */
+section.block{margin-top:64px}
+.block-intro{color:var(--muted);max-width:64ch;margin:10px 0 22px}
+
+ol.tour{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;counter-reset:step}
+ol.tour li{counter-increment:step}
+.step{width:100%;height:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;cursor:pointer;color:var(--ink);font:inherit;display:flex;flex-direction:column;gap:6px}
+.step:hover{border-color:var(--ink)}
+.step .n{font:800 1.4rem var(--display);color:var(--muted)}
+.step .n::before{content:counter(step)}
+.step .what{font-weight:600}
+.step .req{font:600 .8rem var(--mono)}
+.step .notice{font-size:.84rem;color:var(--muted)}
+.step.done{border-color:var(--get)}
+
+.matrix-scroll{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:16px}
+table.matrix{width:100%;border-collapse:collapse;font-size:.9rem;min-width:760px}
+table.matrix th,table.matrix td{padding:11px 14px;border-bottom:1px solid var(--line);text-align:left}
+table.matrix th{font-weight:600;color:var(--muted);font-size:.85rem}
+table.matrix tr:last-child td{border-bottom:0}
+table.matrix td.method{font:800 .95rem var(--display)}
+.y{color:var(--ok);font-weight:600} .n{color:var(--bad);font-weight:600} .s{color:var(--warn);font-weight:600}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+.anatomy{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px}
+.url-big{font:600 clamp(.85rem,2.2vw,1.1rem) var(--mono);word-break:break-all;line-height:2}
+.seg{border-bottom:3px solid var(--c);cursor:help;padding:2px 1px;border-radius:2px;background:transparent;border-top:0;border-left:0;border-right:0;font:inherit;color:inherit}
+.seg:hover,.seg:focus-visible,.seg.on{background:color-mix(in srgb,var(--c) 18%,transparent)}
+.seg-say{margin-top:12px;min-height:4.5em;font-size:.93rem}
+.seg-say b{font-family:var(--display)}
+
+.codes{display:grid;gap:16px}
+.code-group h3{margin-bottom:6px}
+.code-group p.g{color:var(--muted);font-size:.88rem;margin-bottom:8px}
+.code-list{display:flex;flex-wrap:wrap;gap:6px}
+.code-chip{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:6px 10px;font:500 .85rem var(--body);cursor:pointer;text-align:left}
+.code-chip b{font-family:var(--display);margin-right:4px}
+.code-chip.can{border-color:var(--c)}
+.code-chip.can::after{content:" · try it";color:var(--c);font-weight:600}
+.code-detail{margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;min-height:4em;font-size:.93rem}
+
+dl.principles{margin:0;display:grid;grid-template-columns:minmax(150px,220px) 1fr;gap:0;background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+dl.principles dt,dl.principles dd{padding:14px 18px;border-bottom:1px solid var(--line);margin:0}
+dl.principles dt{font:700 1.02rem var(--display)}
+dl.principles dd{color:var(--ink)}
+dl.principles dd em{color:var(--muted);font-style:normal;display:block;font-size:.88rem;margin-top:4px}
+dl.principles dt:nth-last-of-type(1),dl.principles dd:last-child{border-bottom:0}
+
+.history{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.history li+li{border-top:1px solid var(--line)}
+.history button{width:100%;display:grid;grid-template-columns:80px 1fr auto auto;gap:12px;align-items:center;background:transparent;border:0;color:var(--ink);padding:10px 16px;font:inherit;text-align:left;cursor:pointer}
+.history button:hover{background:var(--sunk)}
+.history .hm{font:800 .85rem var(--display)}
+.history .hp{font:500 .85rem var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.history .hs{font:700 .9rem var(--display)}
+.history .ht{color:var(--muted);font-size:.8rem}
+.history .none{padding:18px;color:var(--muted)}
+
+footer{margin:64px 0 40px;color:var(--muted);font-size:.85rem}
+
+@media (max-width:900px){
+  .play,.lower,.two{grid-template-columns:1fr}
+  .node{min-width:0;padding:8px 10px}
+  dl.principles{grid-template-columns:1fr}
+  dl.principles dt{border-bottom:0;padding-bottom:2px}
+  .history button{grid-template-columns:64px 1fr auto}
+  .history .ht{display:none}
+}
+@media (max-width:520px){
+  .url-row .base{display:none}
+  .url-row input{padding-left:12px}
+  .facts{grid-template-columns:1fr 1fr}
+}
+@media (prefers-reduced-motion: reduce){
+  *{scroll-behavior:auto!important}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="top-row">
+    <h1>Talk to an API and watch what it does</h1>
+    <button class="theme-btn" id="themeBtn" type="button">Switch theme</button>
+  </div>
+  <p class="lede">This page runs a small pretend bookshop API right in your browser. Pick an HTTP method, send a request, and see the response, the headers, and the database change underneath. Nothing leaves your machine, so break whatever you like.</p>
+</header>
+
+<!-- ============ PLAYGROUND ============ -->
+<div class="wire" aria-hidden="true">
+  <div class="node" id="clientNode">Client<small>you, the browser</small></div>
+  <div class="track" id="track"><div class="packet" id="packet">GET</div></div>
+  <div class="node" id="serverNode">Server<small>api.example.com</small></div>
+  <div class="wire-caption" id="wireCaption">Requests travel right, responses come back left.</div>
+</div>
+
+<div class="play">
+  <!-- request -->
+  <div class="panel">
+    <div class="panel-head"><h3>Request</h3><span class="hint">Ctrl/⌘ + Enter sends</span></div>
+    <div class="methods" id="methods" role="group" aria-label="HTTP method"></div>
+    <div class="url-row">
+      <span class="base">https://api.example.com</span>
+      <input id="path" value="/books" aria-label="Path and query" spellcheck="false" autocomplete="off">
+    </div>
+    <label class="field" for="headers">Headers <span>— one per line, as Key: Value</span></label>
+    <textarea id="headers" rows="3" spellcheck="false">Accept: application/json
+Content-Type: application/json</textarea>
+    <label class="field" for="body">Body <span>— JSON you send to the server</span></label>
+    <textarea id="body" rows="6" spellcheck="false"></textarea>
+    <div class="body-note" id="bodyNote"></div>
+    <div class="actions">
+      <button class="send" id="sendBtn" type="button">Send request</button>
+      <button class="ghost" id="exampleBtn" type="button">Fill an example</button>
+    </div>
+    <div class="settings">
+      <label><input type="checkbox" id="authToggle"> Require a token for changes</label>
+      <label><input type="checkbox" id="failToggle"> Make the server fail</label>
+      <label>Network delay
+        <select id="delay"><option value="250">Fast</option><option value="700" selected>Normal</option><option value="1600">Slow</option></select>
+      </label>
+    </div>
+    <details class="code">
+      <summary>See this request as code</summary>
+      <div class="tabs" role="tablist" id="codeTabs">
+        <button class="tab" role="tab" aria-selected="true" data-lang="curl">curl</button>
+        <button class="tab" role="tab" aria-selected="false" data-lang="fetch">JavaScript fetch</button>
+        <button class="tab" role="tab" aria-selected="false" data-lang="python">Python requests</button>
+      </div>
+      <pre id="codeOut"></pre>
+    </details>
+  </div>
+
+  <!-- response -->
+  <div class="panel" id="responsePanel" aria-live="polite">
+    <div class="panel-head"><h3>Response</h3><span class="hint" id="respHint"></span></div>
+    <div id="respBody">
+      <div class="empty"><strong>No response yet</strong>Press Send request to call the API, or start the guided tour below.</div>
+    </div>
+  </div>
+</div>
+
+<div class="lower">
+  <div class="panel">
+    <div class="panel-head">
+      <h3>Server database</h3>
+      <button class="ghost" id="resetBtn" type="button">Reset data</button>
+    </div>
+    <div class="table-scroll"><table class="db" id="dbTable"></table></div>
+    <div class="legend">
+      <span><i style="background:color-mix(in srgb,var(--post) 30%,transparent)"></i>Read</span>
+      <span><i style="background:color-mix(in srgb,var(--get) 35%,transparent)"></i>Created</span>
+      <span><i style="background:color-mix(in srgb,var(--put) 35%,transparent)"></i>Changed</span>
+      <span><i style="background:color-mix(in srgb,var(--delete) 35%,transparent)"></i>Deleted</span>
+    </div>
+  </div>
+  <div class="panel explain" id="explain">
+    <h3>What just happened</h3>
+    <p class="hint">After each request, this panel explains the method, the status code, and what the server did to the data.</p>
+  </div>
+</div>
+
+<!-- ============ TOUR ============ -->
+<section class="block" id="tour">
+  <h2>Guided tour</h2>
+  <p class="block-intro">Work through these in order. Each one loads a request into the builder and sends it. Read the response and the database after every step.</p>
+  <ol class="tour" id="tourList"></ol>
+</section>
+
+<!-- ============ METHODS ============ -->
+<section class="block">
+  <h2>The methods, side by side</h2>
+  <p class="block-intro"><b>Safe</b> means the request never changes data. <b>Idempotent</b> means sending it once or ten times leaves the server in the same state. That’s why a browser will happily retry a GET after a dropped connection but warns you before resending a POST.</p>
+  <div class="matrix-scroll"><table class="matrix" id="matrix"></table></div>
+  <div class="panel" style="margin-top:18px">
+    <h3>See idempotency for yourself</h3>
+    <p class="hint" style="margin:6px 0 12px">Sends the same request twice in a row, then compares the database after each one.</p>
+    <div class="actions" style="margin-top:0">
+      <button class="ghost" data-twice="PUT">PUT /books/2 twice</button>
+      <button class="ghost" data-twice="POST">POST /books twice</button>
+      <button class="ghost" data-twice="DELETE">DELETE /books/3 twice</button>
+    </div>
+    <p id="twiceOut" style="margin-top:12px;min-height:1.5em"></p>
+  </div>
+</section>
+
+<!-- ============ URL + STATUS ============ -->
+<section class="block two">
+  <div>
+    <h2>Anatomy of a request URL</h2>
+    <p class="block-intro">Hover or tap each part.</p>
+    <div class="anatomy">
+      <div class="url-big" id="urlBig"></div>
+      <div class="seg-say" id="segSay">Every part of a URL has a job. In REST, the path names a <b>resource</b> (a thing), and the method says what to do with it.</div>
+    </div>
+    <h3 style="margin-top:28px">Good and bad endpoint names</h3>
+    <table class="hdr-table" style="margin-top:10px;font-size:.88rem">
+      <tr><td>GET /books</td><td class="why">Plural noun for the collection. Good.</td></tr>
+      <tr><td>GET /books/7</td><td class="why">One item, identified by id. Good.</td></tr>
+      <tr><td>GET /books/7/reviews</td><td class="why">A nested collection that belongs to book 7. Good.</td></tr>
+      <tr><td>POST /createBook</td><td class="why">The verb belongs in the method, not the path. Use POST /books.</td></tr>
+      <tr><td>GET /deleteBook?id=7</td><td class="why">A GET that changes data breaks the safe rule, and crawlers or prefetchers could trigger it. Use DELETE /books/7.</td></tr>
+    </table>
+  </div>
+  <div>
+    <h2>Status codes</h2>
+    <p class="block-intro">The first digit tells you the family. Codes with a coloured border can be produced by this API: pick one to set up the request that triggers it.</p>
+    <div class="codes" id="codes"></div>
+    <div class="code-detail" id="codeDetail">Pick a code to read what it means.</div>
+  </div>
+</section>
+
+<!-- ============ PRINCIPLES ============ -->
+<section class="block">
+  <h2>What makes an API RESTful</h2>
+  <p class="block-intro">REST is an architectural style described by Roy Fielding in 2000, not a protocol or a library. These are the ideas behind it, mapped to what you just did.</p>
+  <dl class="principles">
+    <dt>Resources</dt><dd>Everything the API exposes is a thing with an address: <code>/books</code>, <code>/books/3</code>.<em>In this demo: each row in the database is a resource, and each has its own URL.</em></dd>
+    <dt>Uniform interface</dt><dd>The same small set of methods works on every resource, and they mean the same thing everywhere.<em>Once you know DELETE /books/3, you can guess DELETE /authors/3.</em></dd>
+    <dt>Representations</dt><dd>You never touch the database row itself. You get a representation of it, usually JSON, and the Content-Type header says which format.<em>The server could send XML or CSV for the same book if you asked with Accept.</em></dd>
+    <dt>Stateless</dt><dd>Each request carries everything the server needs, including who you are. The server doesn’t remember your previous request.<em>That’s why the token goes in the Authorization header on every single call.</em></dd>
+    <dt>Cacheable</dt><dd>Responses say whether and for how long they can be reused, so clients and proxies can skip repeat work.<em>Look for Cache-Control and ETag on GET responses, and try the 304 status code.</em></dd>
+    <dt>Client–server and layered</dt><dd>The client only knows the URL and the contract. Load balancers, caches and gateways can sit in between without the client noticing.<em>Here the “server” is a JavaScript function, and the client can’t tell.</em></dd>
+  </dl>
+</section>
+
+<!-- ============ HISTORY ============ -->
+<section class="block">
+  <h2>Your requests</h2>
+  <p class="block-intro">Select any past request to load it back into the builder.</p>
+  <ul class="history" id="history"><li class="none">Requests you send will be listed here.</li></ul>
+</section>
+
+<footer>Built as a learning tool. The API at api.example.com is simulated in this page; no real network requests are made.</footer>
+</div>
+
+<script>
+(() => {
+"use strict";
+const BASE = "https://api.example.com";
+
+/* ---------------- reference data ---------------- */
+const METHODS = {
+  GET:     {crud:"Read", sql:"SELECT", safe:"yes", idem:"yes", body:"no", cache:"yes",
+            say:"GET asks for a representation of a resource. It only reads, so it never changes anything on the server."},
+  POST:    {crud:"Create", sql:"INSERT", safe:"no", idem:"no", body:"yes", cache:"no",
+            say:"POST sends data to a collection, and the server creates a new resource inside it. The server picks the new id."},
+  PUT:     {crud:"Replace (or create at a known URL)", sql:"UPDATE every column, or UPSERT", safe:"no", idem:"yes", body:"yes", cache:"no",
+            say:"PUT sends a complete new version of the resource at that exact URL. Whatever you leave out is gone afterwards. If nothing exists there yet, the server can create it."},
+  PATCH:   {crud:"Partial update", sql:"UPDATE some columns", safe:"no", idem:"sometimes", body:"yes", cache:"no",
+            say:"PATCH sends only the fields you want to change. Everything else on the resource stays as it was."},
+  DELETE:  {crud:"Delete", sql:"DELETE", safe:"no", idem:"yes", body:"rarely", cache:"no",
+            say:"DELETE removes the resource at that URL."},
+  HEAD:    {crud:"Read headers only", sql:"SELECT, but only the metadata", safe:"yes", idem:"yes", body:"no", cache:"yes",
+            say:"HEAD is a GET without the body. Use it to check whether something exists, how big it is, or whether it changed, without downloading it."},
+  OPTIONS: {crud:"Discover what’s allowed", sql:"—", safe:"yes", idem:"yes", body:"no", cache:"no",
+            say:"OPTIONS asks the server which methods a URL supports. Browsers send it automatically as a CORS preflight before some cross-origin requests."}
+};
+const ORDER = ["GET","POST","PUT","PATCH","DELETE","HEAD","OPTIONS"];
+const color = m => `var(--${m.toLowerCase()})`;
+
+const STATUS = {
+  200:["OK","The request worked, and the body holds the result."],
+  201:["Created","A new resource now exists. Its address is in the Location header."],
+  204:["No Content","It worked, and there’s nothing to send back."],
+  301:["Moved Permanently","The resource has a new URL for good. Update your links."],
+  302:["Found","The resource is temporarily somewhere else. Follow the Location header."],
+  304:["Not Modified","Your cached copy is still current, so the server skipped the body to save bandwidth."],
+  400:["Bad Request","The server couldn’t accept what you sent. The error detail says what to fix."],
+  401:["Unauthorized","You didn’t prove who you are. Add a valid Authorization header."],
+  403:["Forbidden","The server knows who you are, but that identity isn’t allowed to do this."],
+  404:["Not Found","Nothing lives at that URL."],
+  405:["Method Not Allowed","The URL exists but doesn’t accept this method. The Allow header lists the ones it does."],
+  409:["Conflict","The request clashes with the current state, such as creating a duplicate."],
+  415:["Unsupported Media Type","The server doesn’t read the format in Content-Type. Send application/json."],
+  422:["Unprocessable Content","The JSON is valid, but the values break the rules. Many APIs use this for validation errors instead of 400."],
+  429:["Too Many Requests","You hit a rate limit. Wait for the time in Retry-After and try again."],
+  500:["Internal Server Error","Something broke on the server. Not the client’s fault; a retry might work."],
+  503:["Service Unavailable","The server is overloaded or down for maintenance."]
+};
+const statusColor = c => c < 300 ? "var(--ok)" : c < 400 ? "var(--info)" : c < 500 ? "var(--warn)" : "var(--bad)";
+
+const HEADER_WHY = {
+  "content-type":"The format of the body.",
+  "content-length":"Body size in bytes.",
+  "location":"Where the newly created resource lives.",
+  "etag":"A fingerprint of this version. Send it back in If-None-Match to check for changes.",
+  "cache-control":"How long clients may reuse this response.",
+  "allow":"The methods this URL accepts.",
+  "x-total-count":"How many items match, before any limit.",
+  "www-authenticate":"How to authenticate.",
+  "x-request-id":"A unique id for tracing this request in server logs.",
+  "date":"When the server produced the response."
+};
+
+/* ---------------- fake database ---------------- */
+const SEED = [
+  {id:1,title:"The Pragmatic Programmer",author:"Andrew Hunt & David Thomas",year:1999,genre:"Software"},
+  {id:2,title:"Designing Data-Intensive Applications",author:"Martin Kleppmann",year:2017,genre:"Software"},
+  {id:3,title:"Godaan",author:"Munshi Premchand",year:1936,genre:"Fiction"},
+  {id:4,title:"Clean Code",author:"Robert C. Martin",year:2008,genre:"Software"},
+  {id:5,title:"Wings of Fire",author:"A. P. J. Abdul Kalam",year:1999,genre:"Memoir"}
+];
+let db, nextId;
+function resetDb(){ db = SEED.map(b => ({...b})); nextId = 6; }
+resetDb();
+
+const settings = { requireAuth:false, fail:false };
+
+function hash(str){ let h = 5381; for (let i=0;i<str.length;i++) h = ((h<<5)+h+str.charCodeAt(i))>>>0; return h.toString(16); }
+const etagOf = v => `"${hash(JSON.stringify(v))}"`;
+const dbHash = () => hash(JSON.stringify(db));
+const bytes = s => new TextEncoder().encode(s).length;
+
+/* ---------------- fake server ---------------- */
+function handle(req){
+  const url = new URL(req.path || "/", BASE);
+  const parts = url.pathname.split("/").filter(Boolean);
+  const h = req.headers;
+  const reply = (status, body, extra = {}, note = "", tip = "", touched = {}) => {
+    const headers = { "Date": new Date().toUTCString(), "X-Request-Id": Math.random().toString(16).slice(2,10) };
+    let text = "";
+    if (body !== null && body !== undefined){ text = JSON.stringify(body, null, 2); headers["Content-Type"] = "application/json; charset=utf-8"; headers["Content-Length"] = String(bytes(text)); }
+    Object.assign(headers, extra);
+    return { status, body: (req.method === "HEAD") ? null : body, headers, note, tip, touched };
+  };
+  const err = (status, detail, extra, tip) => reply(status, { error: STATUS[status][0], detail }, extra, "The server rejected the request and changed nothing.", tip);
+
+  if (settings.fail) return err(500, "Simulated crash: the database connection dropped.", {}, "Turn off “Make the server fail” to get normal responses again. A 5xx is the server’s problem, so clients often retry these, but only safely for idempotent methods.");
+
+  if (parts[0] !== "books" || parts.length > 2)
+    return err(404, `There is no route for ${url.pathname}. Try /books or /books/1.`, {}, "404 means the URL itself points at nothing. Check the spelling of the path.");
+
+  const isItem = parts.length === 2;
+  const allow = isItem ? "GET, HEAD, PUT, PATCH, DELETE, OPTIONS" : "GET, HEAD, POST, OPTIONS";
+
+  if (req.method === "OPTIONS")
+    return reply(204, null, { "Allow": allow }, `The server listed what ${url.pathname} accepts in the Allow header.`, "Compare OPTIONS /books with OPTIONS /books/1. The collection takes POST, a single item takes PUT, PATCH and DELETE.");
+
+  if (!allow.split(", ").includes(req.method))
+    return err(405, `${url.pathname} doesn’t accept ${req.method}. Allowed: ${allow}.`, { "Allow": allow },
+      isItem ? "You create new books by POSTing to the collection, /books, not to a specific item." : "To change one book, address it directly, like /books/1.");
+
+  const writes = ["POST","PUT","PATCH","DELETE"].includes(req.method);
+  if (settings.requireAuth && writes){
+    const auth = h["authorization"] || "";
+    if (!auth) return err(401, "This server needs a token for changes. Add the header Authorization: Bearer demo-token.", { "WWW-Authenticate": 'Bearer realm="books"' }, "401 really means “unauthenticated”: the server doesn’t know who you are yet.");
+    if (auth === "Bearer reader-token") return err(403, "reader-token can read but not change books. Use demo-token.", {}, "403 is different from 401: the server knows exactly who you are, and the answer is still no.");
+    if (auth !== "Bearer demo-token") return err(401, "That token isn’t valid. Use Authorization: Bearer demo-token.", { "WWW-Authenticate": 'Bearer error="invalid_token"' }, "Tokens travel with every request because REST servers are stateless.");
+  }
+
+  let data = null;
+  if (["POST","PUT","PATCH"].includes(req.method)){
+    const ct = (h["content-type"] || "").toLowerCase();
+    if (!ct.includes("application/json")) return err(415, `Send the body as JSON with Content-Type: application/json. You sent “${ct || "nothing"}”.`, {}, "The Content-Type header tells the server how to read the body. Without it, the bytes are ambiguous.");
+    if (!req.body.trim()) return err(400, "This method needs a JSON body.", {}, "Click Fill an example to get a valid body.");
+    try { data = JSON.parse(req.body); } catch (e){ return err(400, `The body isn’t valid JSON: ${e.message}`, {}, "Common causes: a trailing comma, single quotes instead of double quotes, or unquoted keys."); }
+    if (typeof data !== "object" || data === null || Array.isArray(data)) return err(400, "The body must be a JSON object, like {\"title\": \"…\"}.", {});
+  }
+
+  const validate = (b, full) => {
+    const probs = [];
+    const need = k => full && (typeof b[k] !== "string" || !b[k].trim());
+    if (need("title")) probs.push("title is required and must be a non-empty string");
+    if (need("author")) probs.push("author is required and must be a non-empty string");
+    if ("title" in b && typeof b.title !== "string") probs.push("title must be a string");
+    if ("author" in b && typeof b.author !== "string") probs.push("author must be a string");
+    if ("year" in b && b.year !== null && !Number.isInteger(b.year)) probs.push("year must be a whole number");
+    if ("genre" in b && b.genre !== null && typeof b.genre !== "string") probs.push("genre must be a string");
+    if ("id" in b) probs.push("id is set by the server and can’t be sent in the body");
+    return probs;
+  };
+  const clean = b => { const o = {}; ["title","author","year","genre"].forEach(k => { if (k in b) o[k] = b[k]; }); return o; };
+
+  /* ---- collection ---- */
+  if (!isItem){
+    if (req.method === "GET" || req.method === "HEAD"){
+      let list = db.slice();
+      const q = url.searchParams;
+      const used = [];
+      if (q.get("author")){ list = list.filter(b => b.author.toLowerCase().includes(q.get("author").toLowerCase())); used.push("author"); }
+      if (q.get("genre")){ list = list.filter(b => (b.genre||"").toLowerCase() === q.get("genre").toLowerCase()); used.push("genre"); }
+      if (q.get("q")){ list = list.filter(b => b.title.toLowerCase().includes(q.get("q").toLowerCase())); used.push("q"); }
+      const total = list.length;
+      if (q.get("sort")){
+        const s = q.get("sort"), desc = s.startsWith("-"), key = s.replace(/^-/,"");
+        list.sort((a,b) => { const x=a[key]??"", y=b[key]??""; return (x>y?1:x<y?-1:0)*(desc?-1:1); }); used.push("sort");
+      }
+      if (q.get("limit")){ const n = parseInt(q.get("limit"),10); if (n>=0) list = list.slice(0,n); used.push("limit"); }
+      const body = { data:list, count:list.length, total };
+      const tag = etagOf(body);
+      const extra = { "ETag":tag, "Cache-Control":"max-age=60", "X-Total-Count":String(total) };
+      const touched = { read: list.map(b => b.id) };
+      if (h["if-none-match"] === tag) return { ...reply(304, null, extra, "Your If-None-Match header matched the current ETag, so the server sent no body.", "This is conditional caching: the client keeps a copy and only downloads again when the ETag changes. Change any book and send this again.", touched), body:null };
+      const note = used.length ? `The server read every book, applied your query parameters (${used.join(", ")}), and returned ${list.length} of ${db.length}.` : `The server returned all ${list.length} books in the collection.`;
+      return reply(200, body, extra, note, req.method === "HEAD" ? "The headers are identical to a GET, including Content-Length, but the body was left out." : "Try adding ?genre=Software&sort=-year or ?author=martin to the path. Query parameters filter and shape a collection without new endpoints.", touched);
+    }
+    if (req.method === "POST"){
+      const probs = validate(data, true);
+      if (probs.length) return err(400, `Validation failed: ${probs.join("; ")}.`, {}, "The server checks the body before saving anything. Fix the listed fields and send again.");
+      const book = { id: nextId++, title:"", author:"", year:null, genre:null, ...clean(data) };
+      db.push(book);
+      return reply(201, book, { "Location": `/books/${book.id}` }, `The server inserted a new row and gave it id ${book.id}. The Location header tells you its URL.`, "Send this exact POST again. You’ll get yet another new book, because POST isn’t idempotent.", { added:[book.id] });
+    }
+  }
+
+  /* ---- item ---- */
+  const id = Number(parts[1]);
+  if (!Number.isInteger(id) || id < 1) return err(400, `“${parts[1]}” isn’t a valid book id. Ids are positive whole numbers.`, {});
+  const idx = db.findIndex(b => b.id === id);
+  const found = db[idx];
+
+  if (req.method === "GET" || req.method === "HEAD"){
+    if (!found) return err(404, `There is no book with id ${id}.`, {}, "Maybe it was deleted, or never existed. GET /books lists the ids that exist.");
+    const tag = etagOf(found);
+    const extra = { "ETag":tag, "Cache-Control":"max-age=60" };
+    if (h["if-none-match"] === tag) return { ...reply(304, null, extra, "Your If-None-Match matched the book’s current ETag, so no body was sent.", "PATCH this book and send the same request again: the ETag changes and you get a 200 with fresh data.", {read:[id]}), body:null };
+    return reply(200, found, extra, `The server looked up the row with id ${id} and returned it.`, req.method === "HEAD" ? "HEAD is handy for checking existence: a 200 or 404 tells you, with no body to download." : "Note the ETag header. It changes whenever this book changes.", { read:[id] });
+  }
+  if (req.method === "PUT"){
+    const probs = validate(data, true);
+    if (probs.length) return err(400, `PUT needs the complete resource. ${probs.join("; ")}.`, {}, "With PUT you always send the whole book. To change a single field, use PATCH.");
+    const book = { id, title:"", author:"", year:null, genre:null, ...clean(data) };
+    if (found){
+      const lost = ["year","genre"].filter(k => found[k] != null && !(k in data));
+      db[idx] = book;
+      return reply(200, book, {}, `The server replaced book ${id} entirely with what you sent.` + (lost.length ? ` You didn’t include ${lost.join(" and ")}, so ${lost.length>1?"they are":"it is"} now empty.` : ""),
+        lost.length ? "That’s the classic PUT surprise. PATCH would have kept the fields you left out." : "Send this PUT again and the database ends up exactly the same. That’s idempotency.", { changed:[id] });
+    }
+    db.push(book); db.sort((a,b)=>a.id-b.id); if (id >= nextId) nextId = id + 1;
+    return reply(201, book, { "Location": `/books/${id}` }, `Nothing existed at /books/${id}, so the server created it there. With PUT the client chooses the URL; with POST the server does.`, "Many real APIs forbid creating with PUT and return 404 instead. Both are valid designs.", { added:[id] });
+  }
+  if (req.method === "PATCH"){
+    if (!found) return err(404, `There is no book with id ${id} to update.`, {}, "PATCH only changes something that already exists.");
+    const probs = validate(data, false);
+    if (probs.length) return err(400, `Validation failed: ${probs.join("; ")}.`, {});
+    const fields = Object.keys(clean(data));
+    if (!fields.length) return err(400, "Nothing to change. Send at least one of title, author, year or genre.", {});
+    db[idx] = { ...found, ...clean(data) };
+    return reply(200, db[idx], {}, `The server changed only ${fields.join(", ")} on book ${id}. Every other field kept its value.`, "Compare this with PUT, which wipes any field you don’t send.", { changed:[id] });
+  }
+  if (req.method === "DELETE"){
+    if (!found) return err(404, `There is no book with id ${id}. It may already be deleted.`, {}, "The response differs from the first DELETE, but the server’s state is the same: the book is gone either way. Idempotency is about state, not about getting the same status code.");
+    db.splice(idx, 1);
+    return { ...reply(204, null, {}, `The server removed book ${id}. A 204 response has no body.`, "Send the same DELETE again and watch for a 404.", { removed:[found] }) };
+  }
+  return err(405, "Unsupported.", { "Allow": allow });
+}
+
+/* ---------------- UI state ---------------- */
+const $ = id => document.getElementById(id);
+let method = "GET";
+let lastSig = null, lastHashAfter = null;
+const history = [];
+const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const EXAMPLES = {
+  GET:     { path:"/books?genre=Software&sort=-year", body:"" },
+  POST:    { path:"/books", body:{ title:"Atomic Habits", author:"James Clear", year:2018, genre:"Self-help" } },
+  PUT:     { path:"/books/4", body:{ title:"Clean Code, 2nd edition", author:"Robert C. Martin" } },
+  PATCH:   { path:"/books/3", body:{ genre:"Classic" } },
+  DELETE:  { path:"/books/1", body:"" },
+  HEAD:    { path:"/books/2", body:"" },
+  OPTIONS: { path:"/books", body:"" }
+};
+
+function renderMethods(){
+  $("methods").innerHTML = ORDER.map(m => `<button class="m-btn" type="button" style="--c:${color(m)}" aria-pressed="${m===method}" data-m="${m}">${m}</button>`).join("");
+}
+function setMethod(m){
+  method = m; renderMethods();
+  const takesBody = ["POST","PUT","PATCH"].includes(m);
+  $("body").disabled = !takesBody;
+  $("bodyNote").textContent = takesBody ? "" : `${m} requests don’t carry a body, so this field is ignored.`;
+  $("sendBtn").style.background = color(m);
+  updateCode();
+}
+$("methods").addEventListener("click", e => { const b = e.target.closest("[data-m]"); if (b) setMethod(b.dataset.m); });
+
+function parseHeaders(text){
+  const out = {}, display = [];
+  text.split("\n").forEach(line => {
+    const i = line.indexOf(":"); if (i < 1) return;
+    const k = line.slice(0,i).trim(), v = line.slice(i+1).trim();
+    if (!k) return; out[k.toLowerCase()] = v; display.push([k,v]);
+  });
+  return { map:out, list:display };
+}
+function setHeader(name, value){
+  const lines = $("headers").value.split("\n").filter(l => l.trim() && !l.toLowerCase().startsWith(name.toLowerCase()+":"));
+  if (value !== null) lines.push(`${name}: ${value}`);
+  $("headers").value = lines.join("\n");
+}
+function loadRequest(r){
+  setMethod(r.method);
+  $("path").value = r.path;
+  $("body").value = typeof r.body === "string" ? r.body : JSON.stringify(r.body, null, 2);
+  if (r.headers !== undefined) $("headers").value = r.headers;
+  updateCode();
+}
+$("exampleBtn").addEventListener("click", () => { const ex = EXAMPLES[method]; loadRequest({ method, path:ex.path, body:ex.body }); });
+
+/* ---------------- code snippets ---------------- */
+let codeLang = "curl";
+function pyRepr(v, ind = ""){
+  if (v === null) return "None";
+  if (typeof v === "boolean") return v ? "True" : "False";
+  if (typeof v === "number") return String(v);
+  if (typeof v === "string") return JSON.stringify(v);
+  const n = ind + "    ";
+  if (Array.isArray(v)) return v.length ? "[\n" + v.map(x => n + pyRepr(x, n)).join(",\n") + "\n" + ind + "]" : "[]";
+  const ks = Object.keys(v);
+  return ks.length ? "{\n" + ks.map(k => `${n}${JSON.stringify(k)}: ${pyRepr(v[k], n)}`).join(",\n") + "\n" + ind + "}" : "{}";
+}
+function updateCode(){
+  const url = BASE + $("path").value;
+  const { list } = parseHeaders($("headers").value);
+  const takesBody = ["POST","PUT","PATCH"].includes(method);
+  const raw = $("body").value.trim();
+  let parsed = null; if (takesBody && raw){ try { parsed = JSON.parse(raw); } catch(e){} }
+  let out = "";
+  if (codeLang === "curl"){
+    const lines = [method === "HEAD" ? `curl -I '${url}'` : `curl -X ${method} '${url}'`];
+    list.forEach(([k,v]) => { if (!takesBody && k.toLowerCase()==="content-type") return; lines.push(`  -H '${k}: ${v}'`); });
+    if (takesBody && raw) lines.push(`  -d '${(parsed ? JSON.stringify(parsed) : raw).replace(/'/g,"'\\''")}'`);
+    out = lines.join(" \\\n");
+  } else if (codeLang === "fetch"){
+    const hs = list.filter(([k]) => takesBody || k.toLowerCase()!=="content-type").map(([k,v]) => `    ${JSON.stringify(k)}: ${JSON.stringify(v)}`).join(",\n");
+    out = `const res = await fetch(${JSON.stringify(url)}, {\n  method: "${method}",\n  headers: {\n${hs}\n  }` +
+      (takesBody && raw ? `,\n  body: ${parsed ? "JSON.stringify(" + JSON.stringify(parsed, null, 2).replace(/\n/g,"\n  ") + ")" : JSON.stringify(raw)}` : "") +
+      `\n});\nconsole.log(res.status${method==="HEAD"||method==="DELETE"||method==="OPTIONS" ? ")" : ", await res.json())"};`;
+  } else {
+    const hs = {}; list.forEach(([k,v]) => { if (takesBody || k.toLowerCase()!=="content-type") hs[k]=v; });
+    out = `import requests\n\nres = requests.request(\n    "${method}",\n    "${url}",\n    headers=${pyRepr(hs, "    ")}` +
+      (takesBody && raw ? (parsed ? `,\n    json=${pyRepr(parsed, "    ")}` : `,\n    data=${JSON.stringify(raw)}`) : "") +
+      `,\n)\nprint(res.status_code${method==="HEAD"||method==="DELETE"||method==="OPTIONS" ? ")" : ", res.json())"}`;
+  }
+  $("codeOut").textContent = out;
+}
+$("codeTabs").addEventListener("click", e => {
+  const t = e.target.closest("[data-lang]"); if (!t) return;
+  codeLang = t.dataset.lang;
+  document.querySelectorAll("#codeTabs .tab").forEach(b => b.setAttribute("aria-selected", b === t));
+  updateCode();
+});
+["path","headers","body"].forEach(id => $(id).addEventListener("input", updateCode));
+
+/* ---------------- rendering ---------------- */
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+function highlight(json){
+  return esc(json).replace(/(&quot;(?:[^&]|&(?!quot;))*?&quot;)(\s*:)?|\b(true|false|null)\b|(-?\d+(?:\.\d+)?)/g, (m, str, colon, lit, num) => {
+    if (str) return colon ? `<span class="k">${str}</span>${colon}` : `<span class="s">${str}</span>`;
+    if (lit) return `<span class="b">${lit}</span>`;
+    return `<span class="n">${num}</span>`;
+  });
+}
+
+let lastTouched = {};
+function renderDb(touched = {}){
+  const read = new Set(touched.read||[]), added = new Set(touched.added||[]), changed = new Set(touched.changed||[]);
+  const rows = db.map(b => {
+    const cls = added.has(b.id) ? "added" : changed.has(b.id) ? "changed" : read.has(b.id) ? "read" : "";
+    return `<tr class="${cls}"><td class="id">${b.id}</td><td>${esc(b.title)}</td><td>${esc(b.author)}</td>${b.year==null?'<td class="nil">empty</td>':`<td>${b.year}</td>`}${b.genre==null?'<td class="nil">empty</td>':`<td>${esc(b.genre)}</td>`}</tr>`;
+  });
+  (touched.removed||[]).forEach(b => rows.push(`<tr class="removed"><td class="id">${b.id}</td><td>${esc(b.title)}</td><td>${esc(b.author)}</td><td>${b.year??""}</td><td>${esc(b.genre??"")}</td></tr>`));
+  $("dbTable").innerHTML = `<thead><tr><th>id</th><th>title</th><th>author</th><th>year</th><th>genre</th></tr></thead><tbody>${rows.join("") || '<tr><td colspan="5" class="nil">The collection is empty. POST a book to add one, or reset the data.</td></tr>'}</tbody>`;
+}
+
+let respTab = "body";
+let lastRes = null;
+function renderResponse(res, ms){
+  lastRes = res;
+  const [text, say] = STATUS[res.status] || ["", ""];
+  const hasBody = res.body !== null && res.body !== undefined;
+  const hdrRows = Object.entries(res.headers).map(([k,v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td><td class="why">${HEADER_WHY[k.toLowerCase()]||""}</td></tr>`).join("");
+  $("respHint").textContent = "";
+  $("respBody").innerHTML = `
+    <div class="status-line">
+      <span class="status-code" style="color:${statusColor(res.status)}">${res.status}</span>
+      <span class="status-text">${text}</span>
+      <span class="status-meta">${ms} ms${res.headers["Content-Length"] ? ", " + res.headers["Content-Length"] + " bytes" : ""}</span>
+    </div>
+    <p class="status-say">${say}</p>
+    <div class="tabs" role="tablist" id="respTabs">
+      <button class="tab" role="tab" data-t="body" aria-selected="${respTab==="body"}">Body</button>
+      <button class="tab" role="tab" data-t="headers" aria-selected="${respTab==="headers"}">Headers (${Object.keys(res.headers).length})</button>
+    </div>
+    <div id="respTabBody" ${respTab==="body"?"":"hidden"}>${hasBody ? `<pre class="json">${highlight(JSON.stringify(res.body, null, 2))}</pre>` : `<div class="empty"><strong>No body</strong>${res.status===204?"A 204 response never has one.":res.status===304?"A 304 tells you to use the copy you already have.":method==="HEAD"?"HEAD responses carry headers only. Open the Headers tab.":"The server sent headers only."}</div>`}</div>
+    <div id="respTabHeaders" ${respTab==="headers"?"":"hidden"}><div class="table-scroll"><table class="hdr-table">${hdrRows}</table></div></div>`;
+}
+$("responsePanel").addEventListener("click", e => {
+  const t = e.target.closest("[data-t]"); if (!t) return;
+  respTab = t.dataset.t;
+  document.querySelectorAll("#respTabs .tab").forEach(b => b.setAttribute("aria-selected", b === t));
+  $("respTabBody").hidden = respTab !== "body";
+  $("respTabHeaders").hidden = respTab !== "headers";
+});
+
+const fact = (label, v) => {
+  const cls = v === "yes" ? "yes" : v === "no" ? "no" : "maybe";
+  const word = v === "yes" ? "Yes" : v === "no" ? "No" : v[0].toUpperCase()+v.slice(1);
+  return `<div class="fact">${label}<b class="${cls}">${word}</b></div>`;
+};
+function renderExplain(req, res, repeatNote){
+  const M = METHODS[req.method];
+  const [text, say] = STATUS[res.status];
+  $("explain").innerHTML = `
+    <h3><span style="color:${color(req.method)}">${req.method}</span> ${esc(req.path)} <span style="color:${statusColor(res.status)}">${res.status} ${text}</span></h3>
+    <p><b>The server:</b> ${res.note}</p>
+    <p><b>The method:</b> ${M.say} In CRUD terms it’s <i>${M.crud}</i>; the closest SQL is <code>${M.sql}</code>.</p>
+    <div class="facts">${fact("Safe", M.safe)}${fact("Idempotent", M.idem)}${fact("Has a body", M.body)}${fact("Cacheable", M.cache)}</div>
+    <p><b>The status:</b> ${say}</p>
+    ${repeatNote ? `<div class="callout idem">${repeatNote}</div>` : ""}
+    ${res.tip ? `<div class="callout">${res.tip}</div>` : ""}`;
+}
+
+function renderHistory(){
+  if (!history.length){ $("history").innerHTML = '<li class="none">Requests you send will be listed here.</li>'; return; }
+  $("history").innerHTML = history.map((h,i) => `<li><button type="button" data-h="${i}">
+    <span class="hm" style="color:${color(h.req.method)}">${h.req.method}</span>
+    <span class="hp">${esc(h.req.path)}</span>
+    <span class="hs" style="color:${statusColor(h.status)}">${h.status}</span>
+    <span class="ht">${h.time}</span></button></li>`).join("");
+}
+$("history").addEventListener("click", e => {
+  const b = e.target.closest("[data-h]"); if (!b) return;
+  const h = history[+b.dataset.h];
+  loadRequest({ ...h.req, headers:h.req.headersText });
+  window.scrollTo({ top:0, behavior: reduced ? "auto" : "smooth" });
+});
+
+/* ---------------- wire animation ---------------- */
+function travel(label, bg, toServer, ms){
+  const p = $("packet"), track = $("track");
+  p.textContent = label; p.style.background = bg;
+  const dist = Math.max(0, track.clientWidth - p.offsetWidth);
+  const from = toServer ? 0 : dist, to = toServer ? dist : 0;
+  if (reduced || ms < 60){ p.style.opacity = 0; return Promise.resolve(); }
+  const a = p.animate([
+    { transform:`translate(${from}px,-50%)`, opacity:0 },
+    { transform:`translate(${from + (to-from)*0.1}px,-50%)`, opacity:1, offset:.1 },
+    { transform:`translate(${from + (to-from)*0.9}px,-50%)`, opacity:1, offset:.9 },
+    { transform:`translate(${to}px,-50%)`, opacity:0 }
+  ], { duration:ms, easing:"ease-in-out" });
+  return a.finished.catch(() => {});
+}
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+/* ---------------- send ---------------- */
+let busy = false;
+async function send(override){
+  if (busy) return null;
+  busy = true; $("sendBtn").disabled = true;
+  const headersText = override ? override.headersText : $("headers").value;
+  const req = override ? override : { method, path:$("path").value.trim() || "/", body:$("body").value, headersText };
+  req.headers = parseHeaders(headersText).map;
+  if (!["POST","PUT","PATCH"].includes(req.method)) req.body = "";
+  const delay = +$("delay").value;
+  const leg = Math.round(delay * 0.4);
+  const t0 = performance.now();
+  $("wireCaption").textContent = `${req.method} ${req.path} is on its way…`;
+  await travel(req.method, color(req.method), true, leg);
+  $("serverNode").classList.add("busy");
+  const sig = JSON.stringify([req.method, req.path, req.body.trim(), req.headers["authorization"]||""]);
+  const before = dbHash();
+  const res = handle(req);
+  const after = dbHash();
+  await wait(reduced ? 0 : Math.round(delay * 0.2));
+  $("serverNode").classList.remove("busy");
+  $("wireCaption").textContent = `The server answered ${res.status} ${STATUS[res.status][0]}.`;
+  await travel(String(res.status), statusColor(res.status), false, leg);
+  const ms = Math.round(performance.now() - t0);
+
+  let repeatNote = "";
+  if (sig === lastSig && !["GET","HEAD","OPTIONS"].includes(req.method)){
+    repeatNote = (after === lastHashAfter && before === lastHashAfter)
+      ? `You sent this exact request twice in a row, and the database is identical after both. That’s idempotency in action.`
+      : `You sent this exact request twice in a row, and the database changed again. ${req.method} isn’t idempotent here.`;
+  }
+  lastSig = sig; lastHashAfter = after;
+
+  renderResponse(res, ms);
+  renderDb(res.touched);
+  renderExplain(req, res, repeatNote);
+  history.unshift({ req:{ method:req.method, path:req.path, body:req.body, headersText }, status:res.status, time:new Date().toLocaleTimeString() });
+  if (history.length > 30) history.pop();
+  renderHistory();
+  busy = false; $("sendBtn").disabled = false;
+  return { res, before, after };
+}
+$("sendBtn").addEventListener("click", () => send());
+document.addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter"){ e.preventDefault(); send(); } });
+$("resetBtn").addEventListener("click", () => {
+  resetDb(); lastSig = null; renderDb();
+  $("explain").innerHTML = `<h3>What just happened</h3><p class="hint">The database is back to its original five books.</p>`;
+  document.querySelectorAll(".step.done").forEach(s => s.classList.remove("done"));
+});
+$("authToggle").addEventListener("change", e => settings.requireAuth = e.target.checked);
+$("failToggle").addEventListener("change", e => settings.fail = e.target.checked);
+
+/* ---------------- tour ---------------- */
+const STD = "Accept: application/json\nContent-Type: application/json";
+const TOUR = [
+  { what:"List every book", method:"GET", path:"/books", notice:"A 200 with an array, plus ETag and X-Total-Count headers." },
+  { what:"Filter with query parameters", method:"GET", path:"/books?genre=Software&sort=-year", notice:"Same endpoint, fewer results, newest first." },
+  { what:"Fetch one book", method:"GET", path:"/books/2", notice:"The id in the path picks a single resource." },
+  { what:"Create a book", method:"POST", path:"/books", body:{ title:"Atomic Habits", author:"James Clear", year:2018, genre:"Self-help" }, notice:"201 Created, a new id, and a Location header." },
+  { what:"Replace a book completely", method:"PUT", path:"/books/4", body:{ title:"Clean Code, 2nd edition", author:"Robert C. Martin" }, notice:"Year and genre were left out, so PUT empties them." },
+  { what:"Change one field", method:"PATCH", path:"/books/3", body:{ genre:"Classic" }, notice:"Only genre changes. The rest of the row is untouched." },
+  { what:"Delete a book", method:"DELETE", path:"/books/1", notice:"204 No Content, and the row is struck out." },
+  { what:"Delete it again", method:"DELETE", path:"/books/1", notice:"404 this time, but the database is the same: idempotent." },
+  { what:"Send broken data", method:"POST", path:"/books", body:{ author:"Nobody", year:"last year" }, notice:"400 Bad Request with a detail you can act on." },
+  { what:"Use the wrong method", method:"POST", path:"/books/2", body:{ title:"Oops", author:"Me" }, notice:"405, and the Allow header lists the valid methods." },
+  { what:"Ask what’s allowed", method:"OPTIONS", path:"/books/2", notice:"204 with an Allow header and nothing else." },
+  { what:"Get headers only", method:"HEAD", path:"/books", notice:"Same headers as GET, no body." }
+];
+$("tourList").innerHTML = TOUR.map((s,i) => `<li><button class="step" type="button" data-step="${i}">
+  <span class="n"></span><span class="what">${s.what}</span>
+  <span class="req" style="color:${color(s.method)}">${s.method} ${esc(s.path)}</span>
+  <span class="notice">${s.notice}</span></button></li>`).join("");
+$("tourList").addEventListener("click", async e => {
+  const b = e.target.closest("[data-step]"); if (!b || busy) return;
+  const s = TOUR[+b.dataset.step];
+  settings.fail = false; $("failToggle").checked = false;
+  settings.requireAuth = false; $("authToggle").checked = false;
+  loadRequest({ method:s.method, path:s.path, body:s.body || "", headers:STD });
+  window.scrollTo({ top:0, behavior: reduced ? "auto" : "smooth" });
+  await wait(reduced ? 0 : 350);
+  await send();
+  b.classList.add("done");
+});
+
+/* ---------------- matrix ---------------- */
+const yn = v => v === "yes" ? '<span class="y">Yes</span>' : v === "no" ? '<span class="n">No</span>' : `<span class="s">${v[0].toUpperCase()+v.slice(1)}</span>`;
+const TYPICAL = { GET:"200, 304, 404", POST:"201, 400, 409", PUT:"200, 201, 204", PATCH:"200, 204, 404", DELETE:"204, 200, 404", HEAD:"200, 404", OPTIONS:"204, 200" };
+$("matrix").innerHTML = `<thead><tr><th>Method</th><th>Does</th><th>Safe</th><th>Idempotent</th><th>Body</th><th>Cacheable</th><th>Typical status</th></tr></thead><tbody>` +
+  ORDER.map(m => `<tr><td class="method" style="color:${color(m)}">${m}</td><td>${METHODS[m].crud}</td><td>${yn(METHODS[m].safe)}</td><td>${yn(METHODS[m].idem)}</td><td>${yn(METHODS[m].body)}</td><td>${yn(METHODS[m].cache)}</td><td>${TYPICAL[m]}</td></tr>`).join("") + "</tbody>";
+
+/* ---------------- idempotency twice ---------------- */
+const TWICE = {
+  PUT:    { method:"PUT", path:"/books/2", body:JSON.stringify({ title:"Designing Data-Intensive Applications", author:"Martin Kleppmann", year:2017, genre:"Databases" }, null, 2) },
+  POST:   { method:"POST", path:"/books", body:JSON.stringify({ title:"Refactoring", author:"Martin Fowler", year:1999, genre:"Software" }, null, 2) },
+  DELETE: { method:"DELETE", path:"/books/3", body:"" }
+};
+document.querySelectorAll("[data-twice]").forEach(btn => btn.addEventListener("click", async () => {
+  if (busy) return;
+  settings.fail = false; $("failToggle").checked = false;
+  settings.requireAuth = false; $("authToggle").checked = false;
+  const t = TWICE[btn.dataset.twice];
+  loadRequest({ ...t, headers:STD });
+  $("twiceOut").textContent = "Sending the first request…";
+  const a = await send({ ...t, headersText:STD });
+  $("twiceOut").textContent = "Sending the same request again…";
+  const b = await send({ ...t, headersText:STD });
+  if (!a || !b) return;
+  const same = a.after === b.after;
+  $("twiceOut").innerHTML = `First call: <b style="color:${statusColor(a.res.status)}">${a.res.status}</b>. Second call: <b style="color:${statusColor(b.res.status)}">${b.res.status}</b>. ` +
+    (same ? `The database was <b>identical</b> after both calls, so ${t.method} behaved idempotently.` : `The database <b>changed again</b> on the second call, so ${t.method} is not idempotent. Look at the table: there are now two copies.`) +
+    ` <button class="ghost" type="button" id="twiceReset" style="padding:3px 10px;margin-left:6px">Reset data</button>`;
+  $("twiceReset").addEventListener("click", () => $("resetBtn").click());
+}));
+
+/* ---------------- URL anatomy ---------------- */
+const SEGS = [
+  { t:"https://", c:"var(--options)", name:"Scheme", say:"The protocol. HTTPS encrypts everything after the hostname, including the path, headers and body." },
+  { t:"api.example.com", c:"var(--head)", name:"Host", say:"Which server to talk to. Many companies put their API on its own subdomain." },
+  { t:"/v1", c:"var(--put)", name:"Version", say:"An optional version prefix. It lets the API change in /v2 without breaking apps built against /v1." },
+  { t:"/books", c:"var(--get)", name:"Collection", say:"A plural noun naming a collection of resources. GET lists them; POST adds to them." },
+  { t:"/3", c:"var(--post)", name:"Resource id", say:"Picks one member of the collection. GET, PUT, PATCH and DELETE act on this single book." },
+  { t:"?fields=title,year", c:"var(--patch)", name:"Query: projection", say:"Everything after ? is the query string. Here it asks for only some fields, to make the response smaller." },
+  { t:"&sort=-year", c:"var(--delete)", name:"Query: sorting", say:"More query parameters are joined with &. A leading minus commonly means descending order." }
+];
+$("urlBig").innerHTML = SEGS.map((s,i) => `<button type="button" class="seg" style="--c:${s.c}" data-seg="${i}">${esc(s.t)}</button>`).join("");
+const showSeg = i => {
+  document.querySelectorAll(".seg").forEach((el,j) => el.classList.toggle("on", j === i));
+  $("segSay").innerHTML = `<b style="color:${SEGS[i].c}">${SEGS[i].name}.</b> ${SEGS[i].say}`;
+};
+$("urlBig").addEventListener("mouseover", e => { const s = e.target.closest("[data-seg]"); if (s) showSeg(+s.dataset.seg); });
+$("urlBig").addEventListener("focusin", e => { const s = e.target.closest("[data-seg]"); if (s) showSeg(+s.dataset.seg); });
+$("urlBig").addEventListener("click", e => { const s = e.target.closest("[data-seg]"); if (s) showSeg(+s.dataset.seg); });
+
+/* ---------------- status codes ---------------- */
+const GROUPS = [
+  { title:"2xx Success", g:"It worked.", codes:[200,201,204] },
+  { title:"3xx Redirection", g:"Look somewhere else, or use what you have.", codes:[301,302,304] },
+  { title:"4xx Client error", g:"The request has a problem. Fix it before retrying.", codes:[400,401,403,404,405,409,415,422,429] },
+  { title:"5xx Server error", g:"The server has a problem. The request may have been fine.", codes:[500,503] }
+];
+const RECIPES = {
+  200:() => ({ method:"GET", path:"/books/2" }),
+  201:() => ({ method:"POST", path:"/books", body:{ title:"Ikigai", author:"Héctor García & Francesc Miralles", year:2016, genre:"Self-help" } }),
+  204:() => ({ method:"DELETE", path:"/books/5" }),
+  304:() => {
+    const tag = handle({ method:"GET", path:"/books/1", headers:{}, body:"" }).headers["ETag"];
+    return { method:"GET", path:"/books/1", headers:STD + `\nIf-None-Match: ${tag || '"none"'}` };
+  },
+  400:() => ({ method:"POST", path:"/books", body:{ author:"Somebody" } }),
+  401:() => { settings.requireAuth = true; $("authToggle").checked = true; return { method:"POST", path:"/books", body:{ title:"Secret", author:"Anon" } }; },
+  403:() => { settings.requireAuth = true; $("authToggle").checked = true; return { method:"DELETE", path:"/books/2", headers:STD + "\nAuthorization: Bearer reader-token" }; },
+  404:() => ({ method:"GET", path:"/books/999" }),
+  405:() => ({ method:"DELETE", path:"/books" }),
+  415:() => ({ method:"POST", path:"/books", headers:"Accept: application/json\nContent-Type: text/plain", body:{ title:"Plain", author:"Text" } }),
+  500:() => { settings.fail = true; $("failToggle").checked = true; return { method:"GET", path:"/books" }; }
+};
+$("codes").innerHTML = GROUPS.map(g => `<div class="code-group"><h3>${g.title}</h3><p class="g">${g.g}</p><div class="code-list">${
+  g.codes.map(c => `<button type="button" class="code-chip ${RECIPES[c]?"can":""}" style="--c:${statusColor(c)}" data-code="${c}"><b>${c}</b>${STATUS[c][0]}</button>`).join("")
+}</div></div>`).join("");
+$("codes").addEventListener("click", e => {
+  const b = e.target.closest("[data-code]"); if (!b) return;
+  const c = +b.dataset.code;
+  let html = `<b style="color:${statusColor(c)};font-family:var(--display)">${c} ${STATUS[c][0]}.</b> ${STATUS[c][1]}`;
+  if (RECIPES[c]){
+    if (c !== 500){ settings.fail = false; $("failToggle").checked = false; }
+    if (c !== 401 && c !== 403){ settings.requireAuth = false; $("authToggle").checked = false; }
+    const r = RECIPES[c]();
+    loadRequest({ method:r.method, path:r.path, body:r.body || "", headers:r.headers || STD });
+    html += ` <span class="hint">The request that triggers it is loaded in the builder at the top. Press Send request to see it.</span>`;
+  } else {
+    html += ` <span class="hint">This demo API doesn’t produce this one, but you’ll meet it in real APIs.</span>`;
+  }
+  $("codeDetail").innerHTML = html;
+});
+
+/* ---------------- theme ---------------- */
+const root = document.documentElement;
+try { const saved = localStorage.getItem("rest-theme"); if (saved) root.dataset.theme = saved; } catch(e){}
+$("themeBtn").addEventListener("click", () => {
+  const isDark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  root.dataset.theme = isDark ? "light" : "dark";
+  try { localStorage.setItem("rest-theme", root.dataset.theme); } catch(e){}
+});
+
+/* ---------------- init ---------------- */
+setMethod("GET");
+renderDb();
+})();
+</script>
+</body>
+</html>
